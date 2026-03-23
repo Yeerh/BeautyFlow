@@ -1,9 +1,10 @@
 import { Router } from "express";
 import passport, { isGoogleAuthConfigured } from "../auth/passport.js";
 import { signAuthToken } from "../auth/jwt.js";
+import { getFrontendUrl } from "../config/public-urls.js";
 
 const router = Router();
-const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+const frontendUrl = getFrontendUrl();
 
 function redirectWithError(res, errorCode) {
   res.redirect(`${frontendUrl}/cliente-acesso?error=${errorCode}`);

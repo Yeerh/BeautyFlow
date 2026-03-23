@@ -1,10 +1,11 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import prisma from "../prisma/client.js";
+import { getBackendUrl } from "../config/public-urls.js";
 
 const clientID = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const backendUrl = process.env.BACKEND_URL ?? "http://localhost:3000";
+const backendUrl = getBackendUrl();
 
 export const isGoogleAuthConfigured = Boolean(clientID && clientSecret);
 

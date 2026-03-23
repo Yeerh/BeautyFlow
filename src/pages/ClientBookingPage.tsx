@@ -15,8 +15,9 @@ import { PortalShell } from "@/components/PortalShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks, services } from "@/data/landingContent";
 import { bookingAvailability, bookingBenefits } from "@/data/portalContent";
+import { getApiBaseUrl } from "@/lib/api";
 
-const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const apiUrl = getApiBaseUrl();
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
 
 type BookingDay = {

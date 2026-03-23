@@ -12,11 +12,12 @@ import {
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
+import { getApiBaseUrl } from "@/lib/api";
 
 type AuthMode = "login" | "register";
 
 const previewImage = "/woman-getting-treatment-hairdresser-shop.jpg";
-const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const apiUrl = getApiBaseUrl();
 
 function getAuthErrorMessage(errorCode: string | null) {
   switch (errorCode) {
