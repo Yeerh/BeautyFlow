@@ -115,7 +115,7 @@ export function FullScreenSignup() {
         email: registerForm.email,
         password: registerForm.password,
       });
-      navigate(contactLinks.clientBooking, { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (currentError) {
       setError(
         currentError instanceof Error

@@ -29,3 +29,5 @@ prisma/*.db-journal
 *.sw?
 
 /generated/prisma
+
+.vercel

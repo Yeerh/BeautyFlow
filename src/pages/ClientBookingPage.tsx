@@ -19,6 +19,8 @@ import { getApiBaseUrl } from "@/lib/api";
 
 const apiUrl = getApiBaseUrl();
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
+const NETWORK_ERROR_MESSAGE =
+  "Nao foi possivel conectar ao servidor agora. Voce ainda pode navegar no painel e tentar novamente em instantes.";
 
 type BookingDay = {
   isoDate: string;
@@ -43,6 +45,17 @@ type SavedBooking = {
   createdAt: string;
   status: string;
 };
+
+function getReadableBookingError(error: unknown, fallbackMessage: string) {
+  if (
+    error instanceof Error &&
+    (error.name === "AbortError" || error.message === "Failed to fetch")
+  ) {
+    return fallbackMessage;
+  }
+
+  return error instanceof Error ? error.message : fallbackMessage;
+}
 
 export function ClientBookingPage() {
   const navigate = useNavigate();
@@ -101,11 +114,7 @@ export function ClientBookingPage() {
         }
       } catch (error) {
         if (!isCancelled) {
-          setAvailabilityError(
-            error instanceof Error
-              ? error.message
-              : "Nao foi possivel carregar a agenda.",
-          );
+          setAvailabilityError(getReadableBookingError(error, NETWORK_ERROR_MESSAGE));
         }
       } finally {
         if (!isCancelled) {
@@ -309,9 +318,10 @@ export function ClientBookingPage() {
       window.open(whatsappLink, "_blank", "noopener,noreferrer");
     } catch (error) {
       setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Nao foi possivel registrar o agendamento.",
+        getReadableBookingError(
+          error,
+          "Nao foi possivel registrar o agendamento agora. Tente novamente em alguns instantes.",
+        ),
       );
     } finally {
       setIsSubmitting(false);

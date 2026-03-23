@@ -33,6 +33,7 @@ type ClientAuthContextValue = {
 const AUTH_STORAGE_KEY = "beautyflow.client.session";
 const TOKEN_STORAGE_KEY = "beautyflow.client.token";
 const apiUrl = getApiBaseUrl();
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
 const ClientAuthContext = createContext<ClientAuthContextValue | null>(null);
 
@@ -51,6 +52,11 @@ function readStorage<T>(key: string, fallback: T): T {
 
 function writeStorage<T>(key: string, value: T) {
   if (typeof window === "undefined") {
+    return;
+  }
+
+  if (value === null) {
+    window.localStorage.removeItem(key);
     return;
   }
 
@@ -98,6 +104,25 @@ function parseJwtPayload(token: string): ClientUser | null {
   }
 }
 
+function normalizeClientUser(user: ClientUser): ClientUser {
+  return {
+    name: user.name?.trim() || "Cliente BeautyFlow",
+    email: normalizeEmail(user.email),
+    provider: user.provider === "google" ? "google" : "email",
+  };
+}
+
+function getReadableFetchError(error: unknown, fallbackMessage: string) {
+  if (
+    error instanceof Error &&
+    (error.name === "AbortError" || error.message === "Failed to fetch")
+  ) {
+    return fallbackMessage;
+  }
+
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
 export function ClientAuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
     readStorage<string | null>(TOKEN_STORAGE_KEY, null),
@@ -133,41 +158,85 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token, user]);
 
+  function persistSession(authToken: string, authUser: ClientUser) {
+    const normalizedUser = normalizeClientUser(authUser);
+
+    writeStorage(TOKEN_STORAGE_KEY, authToken);
+    writeStorage(AUTH_STORAGE_KEY, normalizedUser);
+    setToken(authToken);
+    setUser(normalizedUser);
+  }
+
+  function clearSession() {
+    writeStorage(TOKEN_STORAGE_KEY, null);
+    writeStorage(AUTH_STORAGE_KEY, null);
+    setToken(null);
+    setUser(null);
+  }
+
   async function authenticateWithEmail(
     endpoint: "login" | "register",
     payload: { email: string; password: string; name?: string },
   ) {
-    const response = await fetch(`${apiUrl}/api/auth/${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    let lastError: Error | null = null;
 
-    const data = (await response.json().catch(() => ({}))) as {
-      token?: string;
-      user?: ClientUser;
-      message?: string;
-    };
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        AUTH_REQUEST_TIMEOUT_MS,
+      );
 
-    if (!response.ok || !data.token || !data.user) {
-      throw new Error(data.message || "Nao foi possivel autenticar a conta.");
+      try {
+        const response = await fetch(`${apiUrl}/api/auth/${endpoint}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        const data = (await response.json().catch(() => ({}))) as {
+          token?: string;
+          user?: ClientUser;
+          message?: string;
+        };
+
+        if (!response.ok || !data.token || !data.user) {
+          throw new Error(data.message || "Nao foi possivel autenticar a conta.");
+        }
+
+        persistSession(data.token, data.user);
+        return;
+      } catch (error) {
+        const readableError = getReadableFetchError(
+          error,
+          "Nao foi possivel conectar ao servidor. Tente novamente em alguns segundos.",
+        );
+
+        const isRetryableNetworkError =
+          readableError ===
+          "Nao foi possivel conectar ao servidor. Tente novamente em alguns segundos.";
+
+        lastError = new Error(readableError);
+
+        if (!isRetryableNetworkError || attempt === 1) {
+          throw lastError;
+        }
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
     }
 
-    setToken(data.token);
-    setUser({
-      name: data.user.name?.trim() || "Cliente BeautyFlow",
-      email: normalizeEmail(data.user.email),
-      provider: data.user.provider === "google" ? "google" : "email",
-    });
+    throw lastError ?? new Error("Nao foi possivel autenticar a conta.");
   }
 
   const value = useMemo<ClientAuthContextValue>(
     () => ({
       user,
       token,
-      isAuthenticated: Boolean(user),
+      isAuthenticated: Boolean(user || token),
       loginWithEmail: ({ email, password }) =>
         authenticateWithEmail("login", {
           email: normalizeEmail(email),
@@ -186,12 +255,10 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
           throw new Error("Token de autenticacao invalido.");
         }
 
-        setToken(authToken);
-        setUser(parsedUser);
+        persistSession(authToken, parsedUser);
       },
       logout: () => {
-        setToken(null);
-        setUser(null);
+        clearSession();
       },
     }),
     [token, user],
