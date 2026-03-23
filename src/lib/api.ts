@@ -1,15 +1,17 @@
+function normalizeBaseUrl(value?: string) {
+  return value?.trim().replace(/\/$/, "") ?? "";
+}
+
 export function getApiBaseUrl() {
-  const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+  if (typeof window !== "undefined") {
+    if (import.meta.env.DEV) {
+      return normalizeBaseUrl(import.meta.env.VITE_API_URL) || "http://localhost:3000";
+    }
 
-  if (configuredUrl) {
-    return configuredUrl.replace(/\/$/, "");
-  }
-
-  if (typeof window !== "undefined" && !import.meta.env.DEV) {
     return "";
   }
 
-  return "http://localhost:3000";
+  return "";
 }
 
 export function buildApiUrl(path: string) {
