@@ -4,7 +4,6 @@ import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
-import { Navbar } from "@/components/Navbar";
 import { Services } from "@/components/Services";
 import { SocialProof } from "@/components/SocialProof";
 import { Testimonials } from "@/components/Testimonials";
@@ -17,8 +16,6 @@ export function LandingPage() {
         <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-white/6 blur-3xl" />
         <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#00C896]/8 blur-3xl" />
       </div>
-
-      <Navbar />
 
       <main>
         <Hero />

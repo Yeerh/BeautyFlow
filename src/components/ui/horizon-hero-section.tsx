@@ -19,17 +19,13 @@ export function Component() {
       <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] px-6 py-8 shadow-[0_32px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-10 sm:py-10 lg:px-14 lg:py-14">
         <div className="relative grid gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
           <div className="max-w-2xl">
-            <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
-              Plataforma de agendamento
-            </span>
-
-            <h1 className="mt-6 max-w-4xl text-4xl font-semibold leading-[1.02] tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-4xl text-4xl font-semibold leading-[1.02] tracking-tight text-white sm:text-5xl lg:text-6xl">
               <Typewriter
                 text={["Agende seu atendimento em segundos"]}
                 speed={42}
                 loop={false}
-                className="block min-h-[2.8em] max-w-4xl"
-                cursorClassName="bg-[#00C896]"
+                className="block min-h-[2.8em] max-w-4xl text-[#F8C8DC]"
+                cursorClassName="bg-[#F8C8DC]"
               />
             </h1>
 

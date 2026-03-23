@@ -1,67 +1,81 @@
-import {
-  CalendarDays,
-  CheckCircle2,
-  MessageCircle,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { ButtonLink } from "./ButtonLink";
+import { FlippingCard } from "@/components/ui/flipping-card";
 import { benefits, contactLinks, plans } from "../data/landingContent";
 import { SectionHeading } from "./SectionHeading";
 
-const iconMap = {
-  calendar: CalendarDays,
-  check: CheckCircle2,
-  message: MessageCircle,
-  chart: TrendingUp,
-} as const;
+type BenefitFront = (typeof benefits)[number];
+
+function BenefitFrontCard({ data }: { data: BenefitFront }) {
+  return (
+    <div className="flex h-full w-full flex-col rounded-[inherit] bg-[linear-gradient(180deg,#171717_0%,#0B0B0B_100%)] p-4 text-white">
+      <img
+        src={data.image}
+        alt={data.title}
+        className="h-52 w-full rounded-[1rem] border border-white/10 object-cover"
+      />
+      <div className="flex flex-1 flex-col px-2 pb-2 pt-4">
+        <h3 className="text-xl font-semibold tracking-tight text-white">{data.title}</h3>
+        <p className="mt-3 text-sm leading-7 text-white/70">{data.description}</p>
+      </div>
+    </div>
+  );
+}
+
+function BenefitBackCard({ data }: { data: BenefitFront }) {
+  return (
+    <div className="flex h-full w-full flex-col justify-between rounded-[inherit] bg-[linear-gradient(180deg,rgba(0,200,150,0.18),rgba(248,200,220,0.08),rgba(11,11,11,0.96))] p-6 text-white">
+      <div>
+        <span className="inline-flex rounded-full border border-[#00C896]/25 bg-[#00C896]/12 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
+          Beneficio
+        </span>
+        <h3 className="mt-5 text-2xl font-semibold tracking-tight text-white">
+          {data.title}
+        </h3>
+        <p className="mt-4 text-sm leading-7 text-white/72">{data.description}</p>
+      </div>
+
+      <a
+        href={contactLinks.serviceWhatsapp}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em] text-[#F8C8DC] transition-transform duration-300 hover:translate-x-1"
+      >
+        Conhecer solucao
+        <ArrowRight className="h-4 w-4" />
+      </a>
+    </div>
+  );
+}
 
 export function Benefits() {
   return (
     <section id="beneficios" className="scroll-mt-28 px-6 py-16 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <SectionHeading
-          eyebrow="Benefícios"
-          title="Praticidade para quem agenda e mais controle para quem atende"
-          description="O produto foi desenhado para equilibrar velocidade, confiança e apresentação visual, sem ruído e sem complexidade desnecessária."
+          eyebrow="Beneficios"
+          title="Vire os cards e veja o que faz a BeautyFlow render melhor"
+          description="Cada recurso foi pensado para acelerar a agenda, reduzir atrito no atendimento e deixar a operação mais organizada."
         />
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2">
-          {benefits.map((benefit) => {
-            const Icon = iconMap[benefit.icon];
-
-            return (
-              <article
-                key={benefit.title}
-                className="group overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/8 to-white/[0.03] shadow-[0_20px_60px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:border-[#00C896]/25"
-              >
-                <div className="relative overflow-hidden">
-                  <img
-                    src={benefit.image}
-                    alt={benefit.title}
-                    className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0B]/75 via-[#0B0B0B]/10 to-transparent" />
-                  <div className="absolute left-5 top-5 inline-flex rounded-2xl border border-[#00C896]/20 bg-black/35 p-3 text-[#00C896] backdrop-blur-md">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </div>
-
-                <div className="p-7">
-                  <h3 className="text-xl font-semibold text-white">{benefit.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-white/68">
-                    {benefit.description}
-                  </p>
-                </div>
-              </article>
-            );
-          })}
+        <div className="mt-12 flex flex-wrap justify-center gap-6">
+          {benefits.map((benefit) => (
+            <FlippingCard
+              key={benefit.title}
+              width={320}
+              height={430}
+              className="rounded-[1.6rem] border border-white/10 bg-transparent shadow-[0_24px_80px_rgba(0,0,0,0.24)]"
+              frontContent={<BenefitFrontCard data={benefit} />}
+              backContent={<BenefitBackCard data={benefit} />}
+            />
+          ))}
         </div>
 
         <div className="mt-20">
           <SectionHeading
             eyebrow="Planos"
-            title="Estrutura premium para diferentes momentos da operação"
-            description="Os planos mantêm a mesma base visual e tecnológica, com níveis diferentes de profundidade para crescimento e automação."
+            title="Estrutura premium para diferentes momentos da operacao"
+            description="Os planos mantem a mesma base visual e tecnologica, com niveis diferentes de profundidade para crescimento e automacao."
             align="center"
           />
 
@@ -84,7 +98,7 @@ export function Benefits() {
                       {plan.price}
                     </p>
                     <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/45">
-                      por mês
+                      por mes
                     </p>
                   </div>
 
