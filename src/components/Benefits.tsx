@@ -6,6 +6,10 @@ import { SectionHeading } from "./SectionHeading";
 
 type BenefitFront = (typeof benefits)[number];
 
+const featuredBenefits = benefits.filter((benefit) =>
+  ["calendar", "check", "chart"].includes(benefit.icon),
+);
+
 function BenefitFrontCard({ data }: { data: BenefitFront }) {
   return (
     <div className="flex h-full w-full flex-col rounded-[inherit] bg-[linear-gradient(180deg,#171717_0%,#0B0B0B_100%)] p-4 text-white">
@@ -24,22 +28,29 @@ function BenefitFrontCard({ data }: { data: BenefitFront }) {
 
 function BenefitBackCard({ data }: { data: BenefitFront }) {
   return (
-    <div className="flex h-full w-full flex-col justify-between rounded-[inherit] bg-[linear-gradient(180deg,rgba(0,200,150,0.18),rgba(248,200,220,0.08),rgba(11,11,11,0.96))] p-6 text-white">
+    <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-[inherit] bg-[linear-gradient(180deg,#151515_0%,#0B0B0B_100%)] p-6 text-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-2.5rem] top-[-2rem] h-28 w-28 rounded-full bg-[#00C896]/18 blur-3xl" />
+        <div className="absolute bottom-[-2rem] right-[-1rem] h-24 w-24 rounded-full bg-[#F8C8DC]/14 blur-3xl" />
+      </div>
+
       <div>
-        <span className="inline-flex rounded-full border border-[#00C896]/25 bg-[#00C896]/12 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
+        <span className="inline-flex rounded-full border border-[#F8C8DC]/25 bg-[#F8C8DC]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#F8C8DC]">
           Beneficio
         </span>
         <h3 className="mt-5 text-2xl font-semibold tracking-tight text-white">
           {data.title}
         </h3>
-        <p className="mt-4 text-sm leading-7 text-white/72">{data.description}</p>
+        <p className="mt-4 max-w-[15rem] text-sm leading-7 text-white/78">
+          {data.description}
+        </p>
       </div>
 
       <a
         href={contactLinks.serviceWhatsapp}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em] text-[#F8C8DC] transition-transform duration-300 hover:translate-x-1"
+        className="inline-flex w-max items-center gap-2 rounded-full border border-[#00C896]/25 bg-[#00C896]/12 px-4 py-2 text-sm font-semibold uppercase tracking-[0.14em] text-[#00C896] transition-all duration-300 hover:translate-x-1 hover:bg-[#00C896] hover:text-[#0B0B0B]"
       >
         Conhecer solucao
         <ArrowRight className="h-4 w-4" />
@@ -59,7 +70,7 @@ export function Benefits() {
         />
 
         <div className="mt-12 flex flex-wrap justify-center gap-6">
-          {benefits.map((benefit) => (
+          {featuredBenefits.map((benefit) => (
             <FlippingCard
               key={benefit.title}
               width={320}
