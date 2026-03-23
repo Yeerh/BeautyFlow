@@ -7,8 +7,9 @@
     "dev": "vite",
     "server": "node server/index.js",
     "dev:server": "node --watch server/index.js",
-    "build": "tsc && vite build",
+    "build": "prisma generate && tsc && vite build",
     "preview": "vite preview",
+    "postinstall": "prisma generate",
     "prisma:generate": "npx prisma generate",
     "prisma:push": "npx prisma db push"
   },
