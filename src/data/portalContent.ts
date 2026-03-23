@@ -117,9 +117,3 @@ export const bookingAvailability = [
     slots: ["09:30", "13:00", "17:30"],
   },
 ] as const;
-
-export const bookingBenefits = [
-  "Agendamento salvo no banco com usuario, servico, data e horario",
-  "Horario reservado sai automaticamente da lista de disponibilidade",
-  "Data e hora da criacao da reserva ficam registradas",
-] as const;

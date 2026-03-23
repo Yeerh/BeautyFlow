@@ -33,6 +33,30 @@ async function resolveAuthenticatedUser(request) {
   return user ?? null;
 }
 
+router.get("/", async (_req, res, next) => {
+  try {
+    const bookings = await prisma.booking.findMany({
+      select: {
+        id: true,
+        clientName: true,
+        phone: true,
+        serviceName: true,
+        servicePrice: true,
+        scheduledDate: true,
+        scheduledTime: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: [{ scheduledAt: "asc" }, { id: "desc" }],
+      take: 100,
+    });
+
+    res.json({ items: bookings });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/occupied", async (_req, res, next) => {
   try {
     const occupiedBookings = await prisma.booking.findMany({
@@ -68,8 +92,8 @@ router.post("/", async (req, res, next) => {
     } = req.body ?? {};
 
     if (
-      typeof name !== "string" ||
-      typeof email !== "string" ||
+      (typeof name !== "string" && typeof name !== "undefined") ||
+      (typeof email !== "string" && typeof email !== "undefined") ||
       typeof phone !== "string" ||
       typeof serviceName !== "string" ||
       typeof servicePrice !== "string" ||
@@ -82,8 +106,8 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
-    const trimmedName = name.trim();
-    const normalizedEmail = normalizeEmail(email);
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+    const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
     const trimmedPhone = phone.trim();
     const trimmedServiceName = serviceName.trim();
     const trimmedServicePrice = servicePrice.trim();
@@ -92,16 +116,14 @@ router.post("/", async (req, res, next) => {
     const trimmedNotes = typeof notes === "string" ? notes.trim() : "";
 
     if (
-      trimmedName.length < 2 ||
       trimmedPhone.length < 8 ||
-      !normalizedEmail ||
       !trimmedServiceName ||
       !trimmedServicePrice ||
       !trimmedScheduledDate ||
       !trimmedScheduledTime
     ) {
       res.status(400).json({
-        message: "Preencha nome, e-mail, telefone, servico, data e horario.",
+        message: "Preencha telefone, servico, data e horario.",
       });
       return;
     }
@@ -121,7 +143,26 @@ router.post("/", async (req, res, next) => {
     let bookingName = trimmedName;
     let bookingEmail = normalizedEmail;
 
-    if (!user) {
+    if (user) {
+      bookingName = trimmedName || user.name?.trim() || "Cliente BeautyFlow";
+      bookingEmail = user.email;
+
+      if (bookingName && user.name !== bookingName) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            name: bookingName,
+          },
+        });
+      }
+    } else {
+      if (bookingName.length < 2 || !bookingEmail) {
+        res.status(400).json({
+          message: "Preencha nome, e-mail, telefone, servico, data e horario.",
+        });
+        return;
+      }
+
       user = await prisma.user.findUnique({
         where: { email: normalizedEmail },
       });
@@ -143,18 +184,6 @@ router.post("/", async (req, res, next) => {
           },
         });
       }
-    } else {
-      bookingEmail = user.email;
-      bookingName = trimmedName || user.name || trimmedName;
-
-      if (bookingName && user.name !== bookingName) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            name: bookingName,
-          },
-        });
-      }
     }
 
     const booking = await prisma.booking.create({
@@ -172,6 +201,7 @@ router.post("/", async (req, res, next) => {
       },
       select: {
         id: true,
+        phone: true,
         serviceName: true,
         servicePrice: true,
         scheduledDate: true,
