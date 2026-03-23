@@ -19,15 +19,6 @@ const previewImage = "/woman-getting-treatment-hairdresser-shop.jpg";
 
 function getAuthErrorMessage(errorCode: string | null) {
   switch (errorCode) {
-    case "google_disabled":
-      return "O acesso com Google esta desativado no momento.";
-    case "google_not_configured":
-      return "O login com Google ainda nao foi configurado no servidor.";
-    case "google_auth_failed":
-      return "Nao foi possivel concluir o login com Google.";
-    case "missing_token":
-    case "invalid_token":
-      return "Nao foi possivel validar a autenticacao da sua conta.";
     default:
       return "";
   }
@@ -163,8 +154,8 @@ export function FullScreenSignup() {
             </h1>
 
             <p className="mt-4 max-w-lg text-sm leading-7 text-white/68">
-              Crie sua conta com nome, e-mail e senha. O acesso com Google fica
-              desativado por enquanto.
+              Crie sua conta com nome, e-mail e senha. Seus dados sao enviados para
+              o backend e registrados no banco via Prisma.
             </p>
           </div>
         </div>
@@ -222,25 +213,6 @@ export function FullScreenSignup() {
               >
                 Criar conta
               </button>
-            </div>
-
-            <button
-              type="button"
-              disabled
-              className="mt-6 flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/10 px-5 py-4 text-sm font-semibold text-white/38"
-            >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white/50">
-                G
-              </span>
-              Google em breve
-            </button>
-
-            <div className="mt-6 flex items-center gap-4">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs uppercase tracking-[0.18em] text-white/35">
-                ou use seu e-mail
-              </span>
-              <div className="h-px flex-1 bg-white/10" />
             </div>
 
             {mode === "login" ? (

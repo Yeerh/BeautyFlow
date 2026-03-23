@@ -1,17 +1,10 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import passport, { isGoogleAuthConfigured } from "../auth/passport.js";
 import { signAuthToken } from "../auth/jwt.js";
-import { getFrontendUrl } from "../config/public-urls.js";
 import prisma from "../prisma/client.js";
 
 const router = Router();
-const frontendUrl = getFrontendUrl();
 const MIN_PASSWORD_LENGTH = 6;
-
-function redirectWithError(res, errorCode) {
-  res.redirect(`${frontendUrl}/cliente-acesso?error=${errorCode}`);
-}
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
@@ -24,15 +17,6 @@ function sanitizeUser(user) {
     email: user.email,
     provider: String(user.provider ?? "EMAIL").toLowerCase(),
   };
-}
-
-function ensureGoogleAuthConfigured(_req, res, next) {
-  if (!isGoogleAuthConfigured) {
-    redirectWithError(res, "google_disabled");
-    return;
-  }
-
-  next();
 }
 
 router.post("/register", async (req, res, next) => {
@@ -178,37 +162,8 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-router.get("/google", ensureGoogleAuthConfigured, (req, res, next) => {
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-    prompt: "select_account",
-  })(req, res, next);
-});
-
-router.get(
-  "/google/callback",
-  ensureGoogleAuthConfigured,
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: `${frontendUrl}/cliente-acesso?error=google_auth_failed`,
-  }),
-  (req, res) => {
-    if (!req.user) {
-      redirectWithError(res, "google_auth_failed");
-      return;
-    }
-
-    const token = signAuthToken(req.user);
-
-    const redirectUrl = new URL(`${frontendUrl}/auth-success`);
-    redirectUrl.searchParams.set("token", token);
-
-    res.redirect(redirectUrl.toString());
-  },
-);
-
-router.get("/logout", (_req, res) => {
-  res.redirect(`${frontendUrl}/cliente-acesso`);
+router.post("/logout", (_req, res) => {
+  res.status(204).end();
 });
 
 export default router;

@@ -8,12 +8,10 @@ import {
 } from "react";
 import { buildApiUrl } from "@/lib/api";
 
-type AuthProviderType = "email" | "google";
-
 type ClientUser = {
   name: string;
   email: string;
-  provider: AuthProviderType;
+  provider: "email";
 };
 
 type ClientAuthContextValue = {
@@ -26,7 +24,6 @@ type ClientAuthContextValue = {
     email: string;
     password: string;
   }) => Promise<void>;
-  completeTokenLogin: (token: string) => void;
   logout: () => void;
 };
 
@@ -95,7 +92,7 @@ function parseJwtPayload(token: string): ClientUser | null {
     return {
       name: parsedPayload.name?.trim() || "Cliente BeautyFlow",
       email: normalizeEmail(parsedPayload.email),
-      provider: parsedPayload.provider === "google" ? "google" : "email",
+      provider: "email",
     };
   } catch {
     return null;
@@ -106,7 +103,7 @@ function normalizeClientUser(user: ClientUser): ClientUser {
   return {
     name: user.name?.trim() || "Cliente BeautyFlow",
     email: normalizeEmail(user.email),
-    provider: user.provider === "google" ? "google" : "email",
+    provider: "email",
   };
 }
 
@@ -237,15 +234,6 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
           email: normalizeEmail(email),
           password,
         }),
-      completeTokenLogin: (authToken) => {
-        const parsedUser = parseJwtPayload(authToken);
-
-        if (!parsedUser) {
-          throw new Error("Token de autenticacao invalido.");
-        }
-
-        persistSession(authToken, parsedUser);
-      },
       logout: () => {
         clearSession();
       },

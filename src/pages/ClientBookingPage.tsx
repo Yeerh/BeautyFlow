@@ -335,7 +335,7 @@ export function ClientBookingPage() {
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-white/70">
             <UserRound className="h-4 w-4 text-[#00C896]" />
-            {user?.name} via {user?.provider === "google" ? "Google" : "e-mail"}
+            {user?.name} por e-mail
           </div>
           <button
             type="button"

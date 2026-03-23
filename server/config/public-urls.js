@@ -18,10 +18,6 @@ function resolveVercelUrl() {
   return null;
 }
 
-export function getBackendUrl() {
-  return normalizeUrl(process.env.BACKEND_URL) ?? resolveVercelUrl() ?? "http://localhost:3000";
-}
-
 export function getFrontendUrl() {
   return normalizeUrl(process.env.FRONTEND_URL) ?? resolveVercelUrl() ?? "http://localhost:5173";
 }

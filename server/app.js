@@ -1,7 +1,5 @@
 import express from "express";
 import cors from "cors";
-import session from "express-session";
-import passport from "./auth/passport.js";
 import authRouter from "./routes/auth.js";
 import bookingsRouter from "./routes/bookings.js";
 import { getFrontendUrl } from "./config/public-urls.js";
@@ -12,26 +10,10 @@ const frontendUrl = getFrontendUrl();
 app.use(
   cors({
     origin: frontendUrl,
-    credentials: true,
   }),
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET ?? "beautyflow-dev-session-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 1000 * 60 * 60 * 24,
-    },
-  }),
-);
-app.use(passport.initialize());
-app.use(passport.session());
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
