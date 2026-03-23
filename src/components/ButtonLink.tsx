@@ -12,9 +12,9 @@ type ButtonLinkProps = {
 
 const variants = {
   primary:
-    "bg-[#F8C8DC] text-[#0B0B0B] shadow-[0_16px_40px_rgba(248,200,220,0.35)] hover:-translate-y-0.5 hover:bg-[#ffd8e8]",
+    "bg-[#00C896] text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.28)] hover:-translate-y-0.5 hover:bg-[#19d9a7]",
   secondary:
-    "border border-white/15 bg-white/5 text-white hover:-translate-y-0.5 hover:border-[#F8C8DC]/50 hover:bg-white/10",
+    "border border-white/15 bg-white/[0.04] text-white hover:-translate-y-0.5 hover:border-[#00C896]/45 hover:bg-white/[0.08]",
 } as const;
 
 export function ButtonLink({

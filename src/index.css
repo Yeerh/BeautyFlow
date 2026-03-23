@@ -17,11 +17,13 @@
   }
 
   ::selection {
-    @apply bg-[#F8C8DC] text-[#0B0B0B];
+    @apply bg-[#00C896] text-[#0B0B0B];
   }
+
   * {
     @apply border-border outline-ring/50;
   }
+
   html {
     @apply font-sans;
   }

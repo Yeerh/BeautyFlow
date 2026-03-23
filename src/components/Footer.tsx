@@ -1,4 +1,5 @@
 import { Facebook, Instagram, MessageCircle, PhoneCall } from "lucide-react";
+import { Link } from "react-router-dom";
 import { contactLinks, navLinks } from "../data/landingContent";
 
 export function Footer() {
@@ -10,19 +11,22 @@ export function Footer() {
             BeautyFlow
           </a>
           <p className="mt-4 text-sm leading-7 text-white/65">
-            Clínica de estética com posicionamento premium, foco em experiência e uma jornada pensada para conversão.
+            Aplicativo para agendamento de serviços em barbearias e salões de beleza,
+            com foco em organização, apresentação premium e conversão.
           </p>
         </div>
 
-        <div className="grid gap-10 sm:grid-cols-3">
+        <div className="grid gap-10 sm:grid-cols-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F8C8DC]">Navegação</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00C896]">
+              Navegação
+            </p>
             <div className="mt-4 space-y-3">
               {navLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="block text-sm text-white/65 transition-colors duration-300 hover:text-[#F8C8DC]"
+                  className="block text-sm text-white/65 transition-colors duration-300 hover:text-[#00C896]"
                 >
                   {link.label}
                 </a>
@@ -31,11 +35,13 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F8C8DC]">Contato</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00C896]">
+              Contato
+            </p>
             <div className="mt-4 space-y-3 text-sm text-white/65">
               <a
                 href={`tel:${contactLinks.phone.replace(/\D/g, "")}`}
-                className="flex items-center gap-3 transition-colors duration-300 hover:text-[#F8C8DC]"
+                className="flex items-center gap-3 transition-colors duration-300 hover:text-[#00C896]"
               >
                 <PhoneCall className="h-4 w-4" />
                 {contactLinks.phone}
@@ -44,14 +50,14 @@ export function Footer() {
                 href={contactLinks.whatsapp}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-3 transition-colors duration-300 hover:text-[#F8C8DC]"
+                className="flex items-center gap-3 transition-colors duration-300 hover:text-[#00C896]"
               >
                 <MessageCircle className="h-4 w-4" />
                 WhatsApp
               </a>
               <a
                 href={`mailto:${contactLinks.email}`}
-                className="transition-colors duration-300 hover:text-[#F8C8DC]"
+                className="transition-colors duration-300 hover:text-[#00C896]"
               >
                 {contactLinks.email}
               </a>
@@ -59,14 +65,36 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F8C8DC]">Redes sociais</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00C896]">
+              Acessos
+            </p>
+            <div className="mt-4 space-y-3">
+              <Link
+                to={contactLinks.admin}
+                className="block text-sm text-white/65 transition-colors duration-300 hover:text-[#00C896]"
+              >
+                Área do Administrador
+              </Link>
+              <Link
+                to={contactLinks.clientPortal}
+                className="block text-sm text-white/65 transition-colors duration-300 hover:text-[#00C896]"
+              >
+                Área do Cliente
+              </Link>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00C896]">
+              Redes sociais
+            </p>
             <div className="mt-4 flex gap-3">
               <a
                 href={contactLinks.instagram}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#F8C8DC]/40 hover:text-[#F8C8DC]"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/40 hover:text-[#00C896]"
               >
                 <Instagram className="h-4 w-4" />
               </a>
@@ -75,7 +103,7 @@ export function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Facebook"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#F8C8DC]/40 hover:text-[#F8C8DC]"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/40 hover:text-[#00C896]"
               >
                 <Facebook className="h-4 w-4" />
               </a>

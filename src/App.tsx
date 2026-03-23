@@ -1,35 +1,26 @@
-import { Benefits } from "./components/Benefits";
-import { FinalCta } from "./components/FinalCta";
-import { Footer } from "./components/Footer";
-import { Hero } from "./components/Hero";
-import { HowItWorks } from "./components/HowItWorks";
-import { Navbar } from "./components/Navbar";
-import { Services } from "./components/Services";
-import { SocialProof } from "./components/SocialProof";
-import { Testimonials } from "./components/Testimonials";
+import { Route, Routes } from "react-router-dom";
+import { ProtectedClientRoute } from "./components/ProtectedClientRoute";
+import { AdminDashboardPage } from "./pages/AdminDashboardPage";
+import { AuthSuccessPage } from "./pages/AuthSuccessPage";
+import { ClientAuthPage } from "./pages/ClientAuthPage";
+import { ClientBookingPage } from "./pages/ClientBookingPage";
+import { LandingPage } from "./pages/LandingPage";
 
 export default function App() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#0B0B0B] text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -left-16 top-0 h-72 w-72 rounded-full bg-[#F8C8DC]/18 blur-3xl" />
-        <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-[#F5E6E8]/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#F8C8DC]/10 blur-3xl" />
-      </div>
-
-      <Navbar />
-
-      <main>
-        <Hero />
-        <SocialProof />
-        <Services />
-        <Benefits />
-        <HowItWorks />
-        <Testimonials />
-        <FinalCta />
-      </main>
-
-      <Footer />
-    </div>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/admin" element={<AdminDashboardPage />} />
+      <Route path="/auth-success" element={<AuthSuccessPage />} />
+      <Route path="/cliente-acesso" element={<ClientAuthPage />} />
+      <Route
+        path="/cliente-agendamento"
+        element={
+          <ProtectedClientRoute>
+            <ClientBookingPage />
+          </ProtectedClientRoute>
+        }
+      />
+    </Routes>
   );
 }

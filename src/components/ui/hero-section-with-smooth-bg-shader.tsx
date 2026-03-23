@@ -26,8 +26,8 @@ type HeroSectionProps = {
 
 const defaultColors = [
   "#0B0B0B",
-  "#F8C8DC",
-  "#F5E6E8",
+  "#1A1A1A",
+  "#00C896",
   "#FFFFFF",
   "#F8C8DC",
   "#0B0B0B",
@@ -39,9 +39,9 @@ function cn(...values: Array<string | undefined>) {
 
 export function HeroSection({
   id,
-  title = "Sua agenda cheia todos os dias",
-  highlightText = "sem depender so do Instagram",
-  description = "Automatize seus agendamentos, reduza faltas e aumente seu faturamento.",
+  title = "Agende seu atendimento em segundos",
+  highlightText = "simples, rápido e profissional",
+  description = "Um aplicativo para agendamento de serviços em barbearias e salões de beleza.",
   buttonText = "Agendar agora",
   onButtonClick,
   colors = [...defaultColors],
@@ -55,7 +55,7 @@ export function HeroSection({
   descriptionClassName,
   buttonClassName,
   maxWidth = "max-w-6xl",
-  veilOpacity = "bg-black/55",
+  veilOpacity = "bg-black/60",
   children,
 }: HeroSectionProps) {
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
@@ -85,7 +85,7 @@ export function HeroSection({
           titleClassName,
         )}
       >
-        {title} <span className="text-[#F8C8DC]">{highlightText}</span>
+        {title} <span className="text-[#00C896]">{highlightText}</span>
       </h1>
       <p
         className={cn(
@@ -101,7 +101,7 @@ export function HeroSection({
             type="button"
             onClick={onButtonClick}
             className={cn(
-              "inline-flex items-center justify-center rounded-full bg-[#F8C8DC] px-7 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(248,200,220,0.35)] transition-transform duration-300 hover:-translate-y-0.5",
+              "inline-flex items-center justify-center rounded-full bg-[#00C896] px-7 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.28)] transition-transform duration-300 hover:-translate-y-0.5",
               buttonClassName,
             )}
           >
@@ -140,14 +140,14 @@ export function HeroSection({
               offsetX={offsetX}
             />
             <div className={cn("absolute inset-0", veilOpacity)} />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(248,200,220,0.18),transparent_36%),radial-gradient(circle_at_bottom,rgba(245,230,232,0.08),transparent_26%),linear-gradient(180deg,rgba(11,11,11,0.16)_0%,rgba(11,11,11,0.34)_28%,rgba(11,11,11,0.74)_100%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,200,150,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(248,200,220,0.08),transparent_24%),linear-gradient(180deg,rgba(11,11,11,0.18)_0%,rgba(11,11,11,0.34)_28%,rgba(11,11,11,0.76)_100%)]" />
           </>
         ) : (
           <div className="absolute inset-0 bg-[#0B0B0B]" />
         )}
 
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:72px_72px] opacity-[0.04]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(11,11,11,0.08)_58%,rgba(11,11,11,0.34)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(11,11,11,0.1)_58%,rgba(11,11,11,0.36)_100%)]" />
       </div>
 
       <div className={cn("relative z-10", contentClassName)}>

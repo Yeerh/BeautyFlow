@@ -1,154 +1,220 @@
 export const navLinks = [
-  { label: "In\u00edcio", href: "#inicio" },
-  { label: "Servi\u00e7os", href: "#servicos" },
+  { label: "Início", href: "#inicio" },
+  { label: "Serviços", href: "#servicos" },
   { label: "Sobre", href: "#sobre" },
 ] as const;
 
 export const contactLinks = {
   schedule: "#cta",
   whatsapp:
-    "https://wa.me/5511999990000?text=Ol%C3%A1%2C%20quero%20agendar%20uma%20avalia%C3%A7%C3%A3o%20na%20BeautyFlow.",
+    "https://wa.me/5511999990000?text=Olá,%20quero%20agendar%20um%20atendimento%20pela%20BeautyFlow.",
   serviceWhatsapp:
-    "https://wa.me/5581992388506?text=quero%20o%20servi%C3%A7o%20beauty%20para%20minha%20loja.",
+    "https://wa.me/5581992388506?text=quero%20o%20serviço%20beauty%20para%20minha%20loja.",
+  admin: "/admin",
+  clientPortal: "/cliente-acesso",
+  clientBooking: "/cliente-agendamento",
   instagram: "https://instagram.com/beautyflow",
   facebook: "https://facebook.com/beautyflow",
   email: "contato@beautyflow.com.br",
-  phone: "+55 (11) 99999-0000",
+  phone: "923885806",
 } as const;
 
 export const heroHighlights = [
-  "Capta\u00e7\u00e3o mais previs\u00edvel",
-  "Confirma\u00e7\u00f5es autom\u00e1ticas",
-  "Experi\u00eancia premium do primeiro clique ao p\u00f3s-atendimento",
+  "Agendamento simples",
+  "Fluxo rápido",
+  "Experiência profissional",
 ] as const;
 
 export const metrics = [
   {
     value: "+500",
-    label: "atendimentos realizados",
-    note: "Fluxo cont\u00ednuo de agenda com acompanhamento pr\u00f3ximo em cada etapa.",
+    label: "agendamentos realizados",
+    note: "Uma jornada direta que ajuda a transformar interesse em reserva confirmada.",
   },
   {
     value: "+120",
-    label: "clientes satisfeitos",
-    note: "Relacionamento consultivo que gera recompra e indica\u00e7\u00f5es recorrentes.",
+    label: "clientes ativos",
+    note: "Uso consistente por públicos diferentes, com foco em praticidade e boa apresentação.",
   },
   {
     value: "98%",
-    label: "satisfa\u00e7\u00e3o nas avalia\u00e7\u00f5es",
-    note: "Percep\u00e7\u00e3o premium refletida em atendimento, ambiente e resultado.",
+    label: "satisfação percebida",
+    note: "A combinação de velocidade e confiança melhora a experiência do início ao fim.",
   },
 ] as const;
 
 export const services = [
   {
     icon: "sparkles",
-    title: "Botox",
+    title: "Barba premium",
+    price: "45$",
     image:
-      "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1517832606299-7ae9b720a186?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Suaviza\u00e7\u00e3o elegante de linhas de express\u00e3o com resultado natural e seguro.",
+      "Atendimento objetivo para quem busca acabamento impecável e praticidade no dia a dia.",
   },
   {
     icon: "droplets",
     title: "Limpeza de pele",
+    price: "75$",
     image:
       "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Protocolo profundo para renovar textura, luminosidade e vi\u00e7o da pele.",
+      "Cuidado essencial para homens e mulheres que valorizam pele bem tratada e aparência saudável.",
   },
   {
     icon: "gem",
-    title: "Preenchimento labial",
+    title: "Estética facial",
+    price: "110$",
     image:
-      "https://images.unsplash.com/photo-1583001809873-a128495da465?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1596178065887-1198b6148b2b?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Defini\u00e7\u00e3o equilibrada com harmonia facial e acabamento sofisticado.",
+      "Procedimentos focados em definição, equilíbrio visual e melhora da aparência facial.",
   },
   {
     icon: "heart",
-    title: "Bioestimulador",
+    title: "Revitalização facial",
+    price: "140$",
     image:
       "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Tratamento de est\u00edmulo de col\u00e1geno para firmeza progressiva e duradoura.",
+      "Tratamento para recuperar viço, firmeza e sensação de cuidado contínuo.",
   },
   {
     icon: "leaf",
-    title: "Peeling facial",
+    title: "Sobrancelha e contorno",
+    price: "50$",
     image:
-      "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1519415943484-9fa1873496d4?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Renova\u00e7\u00e3o celular que melhora manchas, poros e uniformidade da pele.",
+      "Detalhes que mudam a percepção do rosto com resultado limpo e profissional.",
   },
   {
     icon: "sun",
-    title: "Hidrata\u00e7\u00e3o glow",
+    title: "Hidratação glow",
+    price: "60$",
     image:
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Infus\u00e3o de ativos para recuperar maciez, brilho e apar\u00eancia saud\u00e1vel.",
+      "Finalização suave para quem busca cuidado pessoal com aparência renovada e natural.",
+  },
+] as const;
+
+export const platformServices = [
+  {
+    icon: "calendar",
+    title: "Agendamento online",
+    badge: "Essencial",
+    image:
+      "https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=1200&q=80",
+    description:
+      "Calendário com dias e horários disponíveis para qualquer pessoa reservar sem depender de atendimento manual.",
+  },
+  {
+    icon: "users",
+    title: "Cadastro de clientes",
+    badge: "Acesso",
+    image:
+      "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80",
+    description:
+      "Login, cadastro por e-mail e estrutura pronta para integração com acesso via Google.",
+  },
+  {
+    icon: "message",
+    title: "Confirmações automáticas",
+    badge: "Automação",
+    image:
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
+    description:
+      "Lembretes e confirmações organizados para reduzir faltas e dar mais previsibilidade à agenda.",
+  },
+  {
+    icon: "layout",
+    title: "Painel administrativo",
+    badge: "Gestão",
+    image:
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+    description:
+      "Área central para acompanhar agendamentos, leads, confirmações e visão geral da operação.",
+  },
+  {
+    icon: "chart",
+    title: "Relatórios e métricas",
+    badge: "Análise",
+    image:
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+    description:
+      "Resumo de ocupação, atendimento e performance para orientar decisões com mais clareza.",
+  },
+  {
+    icon: "shield",
+    title: "Área do cliente",
+    badge: "Experiência",
+    image:
+      "https://images.unsplash.com/photo-1516382799247-87df95d790b7?auto=format&fit=crop&w=1200&q=80",
+    description:
+      "Fluxo dedicado para a pessoa entrar na conta, escolher serviço, ver preço e concluir o pedido.",
   },
 ] as const;
 
 export const benefits = [
   {
     icon: "calendar",
-    title: "Agenda autom\u00e1tica",
+    title: "Agenda automática",
     image:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Disponibilidade organizada em tempo real para reduzir atrito no agendamento.",
+      "Disponibilidade organizada em tempo real para reduzir atrito e acelerar a reserva.",
   },
   {
     icon: "check",
-    title: "Redu\u00e7\u00e3o de faltas",
+    title: "Redução de faltas",
     image:
       "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Lembretes e confirma\u00e7\u00f5es autom\u00e1ticas ajudam a manter a agenda mais est\u00e1vel.",
+      "Lembretes e confirmações ajudam a manter a agenda mais previsível e profissional.",
   },
   {
     icon: "message",
-    title: "Atendimento r\u00e1pido",
+    title: "Atendimento rápido",
     image:
       "https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Contato imediato via WhatsApp com respostas mais \u00e1geis e personalizadas.",
+      "Contato direto via WhatsApp com menos fricção para pessoas que preferem resolver tudo rápido.",
   },
   {
     icon: "chart",
-    title: "Aumento de faturamento",
+    title: "Mais conversão",
     image:
       "https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=1200&q=80",
     description:
-      "Mais ocupa\u00e7\u00e3o da agenda e melhor experi\u00eancia elevam o ticket com consist\u00eancia.",
+      "Visual forte e fluxo simples ajudam a melhorar a taxa de agendamento com constância.",
   },
 ] as const;
 
 export const plans = [
   {
     name: "Premium",
-    price: "R$ 297/m\u00eas",
+    price: "70$",
     description:
-      "Para lojas que querem profissionalizar o atendimento e come\u00e7ar a automatizar a capta\u00e7\u00e3o com uma estrutura elegante.",
+      "Para operações que querem sair do improviso e apresentar um sistema de agendamento mais profissional.",
     features: [
-      "Landing page premium com foco em convers\u00e3o",
-      "Bot\u00f5es de WhatsApp e agendamento direto",
-      "Confirma\u00e7\u00f5es autom\u00e1ticas e lembretes",
-      "Relat\u00f3rios essenciais de leads e agenda",
+      "Landing page premium com foco em conversão",
+      "Botões de WhatsApp e agendamento direto",
+      "Confirmações automáticas e lembretes",
+      "Relatórios essenciais de leads e agenda",
     ],
   },
   {
     name: "Plus",
-    price: "R$ 597/m\u00eas",
+    price: "130$",
     description:
-      "Para opera\u00e7\u00f5es em crescimento que precisam de mais automa\u00e7\u00e3o, previsibilidade e acompanhamento comercial.",
+      "Para negócios que precisam de mais automação, previsibilidade e visão comercial da operação.",
     features: [
-      "Tudo do Premium com mais personaliza\u00e7\u00e3o",
+      "Tudo do Premium com mais personalização",
       "Follow-up automatizado para novos contatos",
       "Acompanhamento de performance e faturamento",
-      "Suporte priorit\u00e1rio e otimiza\u00e7\u00f5es mensais",
+      "Suporte prioritário e otimizações mensais",
     ],
   },
 ] as const;
@@ -156,47 +222,50 @@ export const plans = [
 export const steps = [
   {
     step: "01",
-    title: "Cliente acessa o site",
+    title: "Pessoa acessa o site",
     description:
-      "A primeira impress\u00e3o j\u00e1 transmite confian\u00e7a, sofistica\u00e7\u00e3o e autoridade.",
+      "A primeira impressão já transmite confiança, sofisticação e objetividade.",
   },
   {
     step: "02",
-    title: "Escolhe o servi\u00e7o ideal",
+    title: "Escolhe o atendimento ideal",
     description:
-      "Cards claros ajudam a entender rapidamente o tratamento certo para cada objetivo.",
+      "Cards claros ajudam a entender rapidamente a melhor opção para cada necessidade.",
   },
   {
     step: "03",
     title: "Agenda online",
     description:
-      "A jornada segue sem ru\u00eddo com CTA claro, fluxo simples e resposta imediata.",
+      "A jornada segue sem ruído com CTA claro, fluxo simples e resposta imediata.",
   },
   {
     step: "04",
-    title: "Recebe confirma\u00e7\u00e3o autom\u00e1tica",
+    title: "Recebe confirmação automática",
     description:
-      "Mensagens autom\u00e1ticas reduzem faltas e mant\u00eam a experi\u00eancia organizada.",
+      "Mensagens automáticas reduzem faltas e mantêm a experiência organizada.",
   },
 ] as const;
 
 export const testimonials = [
   {
-    name: "Mariana Costa",
-    role: "Empres\u00e1ria",
+    name: "Rafael Mendes",
+    role: "Consultor",
+    avatarIcon: "person",
     comment:
-      "Atendimento impec\u00e1vel do in\u00edcio ao fim. Consegui agendar em minutos e sa\u00ed da cl\u00ednica me sentindo renovada.",
+      "Gostei porque foi rápido, direto e sem complicação. Em poucos minutos eu já tinha escolhido o serviço e reservado o horário.",
   },
   {
     name: "Fernanda Rocha",
     role: "Arquiteta",
+    avatarIcon: "account_circle",
     comment:
-      "A BeautyFlow passa muita seguran\u00e7a. A experi\u00eancia \u00e9 elegante, r\u00e1pida e realmente focada em resultado.",
+      "A BeautyFlow passa segurança e organização. A experiência visual é elegante e o fluxo parece profissional do início ao fim.",
   },
   {
-    name: "Camila Souza",
-    role: "Influenciadora",
+    name: "Lucas Azevedo",
+    role: "Empresário",
+    avatarIcon: "face",
     comment:
-      "A confirma\u00e7\u00e3o autom\u00e1tica e o cuidado no atendimento fizeram toda a diferen\u00e7a. \u00c9 uma cl\u00ednica que pensa em cada detalhe.",
+      "O que mais chamou atenção foi a objetividade. Tudo foi claro, rápido e com uma apresentação que transmite confiança.",
   },
 ] as const;
