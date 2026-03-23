@@ -9,7 +9,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
 
@@ -34,7 +34,6 @@ function getAuthErrorMessage(errorCode: string | null) {
 }
 
 export function FullScreenSignup() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, loginWithEmail, registerWithEmail } = useClientAuth();
   const [mode, setMode] = useState<AuthMode>("login");
@@ -86,7 +85,7 @@ export function FullScreenSignup() {
 
     try {
       await loginWithEmail(loginForm);
-      navigate(redirectTo, { replace: true });
+      window.location.assign(redirectTo);
     } catch (currentError) {
       setError(
         currentError instanceof Error
@@ -115,7 +114,7 @@ export function FullScreenSignup() {
         email: registerForm.email,
         password: registerForm.password,
       });
-      navigate(redirectTo, { replace: true });
+      window.location.assign(redirectTo);
     } catch (currentError) {
       setError(
         currentError instanceof Error

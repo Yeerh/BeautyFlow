@@ -15,9 +15,7 @@ import { PortalShell } from "@/components/PortalShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks, services } from "@/data/landingContent";
 import { bookingAvailability, bookingBenefits } from "@/data/portalContent";
-import { getApiBaseUrl } from "@/lib/api";
-
-const apiUrl = getApiBaseUrl();
+import { buildApiUrl } from "@/lib/api";
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
 const NETWORK_ERROR_MESSAGE =
   "Nao foi possivel conectar ao servidor agora. Voce ainda pode navegar no painel e tentar novamente em instantes.";
@@ -99,7 +97,7 @@ export function ClientBookingPage() {
       setAvailabilityError("");
 
       try {
-        const response = await fetch(`${apiUrl}/api/bookings/occupied`);
+        const response = await fetch(buildApiUrl("/api/bookings/occupied"));
         const data = (await response.json().catch(() => ({}))) as {
           items?: OccupiedSlot[];
           message?: string;
@@ -267,7 +265,7 @@ export function ClientBookingPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/bookings`, {
+      const response = await fetch(buildApiUrl("/api/bookings"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

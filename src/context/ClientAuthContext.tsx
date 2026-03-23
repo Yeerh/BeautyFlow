@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getApiBaseUrl } from "@/lib/api";
+import { buildApiUrl } from "@/lib/api";
 
 type AuthProviderType = "email" | "google";
 
@@ -32,8 +32,6 @@ type ClientAuthContextValue = {
 
 const AUTH_STORAGE_KEY = "beautyflow.client.session";
 const TOKEN_STORAGE_KEY = "beautyflow.client.token";
-const apiUrl = getApiBaseUrl();
-const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
 const ClientAuthContext = createContext<ClientAuthContextValue | null>(null);
 
@@ -181,20 +179,13 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(
-        () => controller.abort(),
-        AUTH_REQUEST_TIMEOUT_MS,
-      );
-
       try {
-        const response = await fetch(`${apiUrl}/api/auth/${endpoint}`, {
+        const response = await fetch(buildApiUrl(`/api/auth/${endpoint}`), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload),
-          signal: controller.signal,
         });
 
         const data = (await response.json().catch(() => ({}))) as {
@@ -224,8 +215,6 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
         if (!isRetryableNetworkError || attempt === 1) {
           throw lastError;
         }
-      } finally {
-        window.clearTimeout(timeoutId);
       }
     }
 

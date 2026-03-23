@@ -6,8 +6,13 @@ export function getApiBaseUrl() {
   }
 
   if (typeof window !== "undefined" && !import.meta.env.DEV) {
-    return window.location.origin;
+    return "";
   }
 
   return "http://localhost:3000";
+}
+
+export function buildApiUrl(path: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${getApiBaseUrl()}${normalizedPath}`;
 }
