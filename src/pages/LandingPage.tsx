@@ -1,16 +1,43 @@
+import { AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
 import { AboutApp } from "@/components/AboutApp";
 import { Benefits } from "@/components/Benefits";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
+import { LandingIntro } from "@/components/LandingIntro";
 import { Services } from "@/components/Services";
 import { SocialProof } from "@/components/SocialProof";
 import { Testimonials } from "@/components/Testimonials";
 
 export function LandingPage() {
+  const [showIntro, setShowIntro] = useState(true);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = showIntro ? "hidden" : previousOverflow;
+
+    if (!showIntro) {
+      return () => {
+        document.body.style.overflow = previousOverflow;
+      };
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowIntro(false);
+    }, 2800);
+
+    return () => {
+      window.clearTimeout(timer);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showIntro]);
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#0B0B0B] text-white">
+      <AnimatePresence>{showIntro ? <LandingIntro /> : null}</AnimatePresence>
+
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -left-16 top-0 h-72 w-72 rounded-full bg-[#00C896]/14 blur-3xl" />
         <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-white/6 blur-3xl" />

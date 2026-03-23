@@ -1,24 +1,27 @@
-import { CalendarDays, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { FeatureSteps } from "@/components/blocks/feature-section";
 import { SectionHeading } from "./SectionHeading";
 
-const aboutHighlights = [
+const features = [
   {
-    icon: CalendarDays,
-    title: "Agenda online",
-    description:
-      "Dias e horários disponíveis organizados em uma experiência objetiva para reservar serviços sem fricção.",
+    step: "Agenda online",
+    title: "Horarios sempre acessiveis",
+    content:
+      "O cliente encontra dias e horarios disponiveis com rapidez, escolhe o servico e finaliza a reserva sem depender de mensagens soltas no WhatsApp.",
+    image: "/platform-agenda.svg",
   },
   {
-    icon: UsersRound,
-    title: "Atendimento organizado",
-    description:
-      "Ideal para operações que precisam atender clientes com rapidez e apresentação profissional.",
+    step: "Atendimento organizado",
+    title: "Rotina mais clara para a equipe",
+    content:
+      "Servicos, horarios e dados do cliente ficam centralizados em um fluxo visual mais profissional para barbearias, saloes e clinicas de estetica.",
+    image: "/platform-organized.svg",
   },
   {
-    icon: ShieldCheck,
-    title: "Fluxo confiável",
-    description:
-      "Da escolha do serviço até a confirmação, tudo é pensado para transmitir clareza e confiança.",
+    step: "Fluxo confiavel",
+    title: "Da reserva ate a confirmacao",
+    content:
+      "Cada etapa foi pensada para reduzir atrito no agendamento, transmitir confianca e manter a experiencia do cliente simples do inicio ao fim.",
+    image: "/platform-flow.svg",
   },
 ] as const;
 
@@ -28,64 +31,17 @@ export function AboutApp() {
       <div className="mx-auto max-w-7xl">
         <SectionHeading
           eyebrow="Sobre a Plataforma"
-          title="BeautyFlow é um aplicativo para agendamento de serviços em barbearias e salões de beleza"
-          description="A proposta é reunir tecnologia, agilidade e boa apresentação em uma plataforma feita para negócios de cuidado pessoal que precisam vender melhor o atendimento."
+          title="Uma experiencia de agendamento feita para organizar o atendimento"
+          description="A BeautyFlow combina apresentacao premium com um fluxo objetivo para negocios de beleza que precisam vender, agendar e atender com mais clareza."
         />
 
-        <div className="mt-12 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <article className="overflow-hidden rounded-[2rem] border border-[#00C896]/15 bg-[linear-gradient(180deg,rgba(0,200,150,0.1),rgba(255,255,255,0.03))] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
-              <Sparkles className="h-4 w-4" />
-              Sistema de agendamento
-            </span>
-
-            <h3 className="mt-6 max-w-2xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              Um fluxo pensado para transformar busca por horário em atendimento confirmado.
-            </h3>
-
-            <p className="mt-5 max-w-2xl text-base leading-8 text-white/68">
-              A BeautyFlow ajuda barbearias e salões de beleza a apresentar seus serviços de
-              forma mais organizada, acelerar o contato com clientes e dar mais previsibilidade
-              para a agenda com um visual moderno e sofisticado.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {[
-                "Serviços com preço",
-                "Calendário disponível",
-                "Confirmação rápida",
-                "Gestão centralizada",
-              ].map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-white/72"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </article>
-
-          <div className="grid gap-5">
-            {aboutHighlights.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <article
-                  key={item.title}
-                  className="rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
-                >
-                  <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h4 className="mt-5 text-xl font-semibold text-white">{item.title}</h4>
-                  <p className="mt-3 text-sm leading-7 text-white/65">
-                    {item.description}
-                  </p>
-                </article>
-              );
-            })}
-          </div>
+        <div className="mt-12 overflow-hidden rounded-[2.25rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] shadow-[0_28px_100px_rgba(0,0,0,0.24)]">
+          <FeatureSteps
+            features={features}
+            title="Agenda online, atendimento organizado e um fluxo confiavel em um so lugar"
+            autoPlayInterval={4200}
+            imageHeight="h-[320px] sm:h-[400px] lg:h-[520px]"
+          />
         </div>
       </div>
     </section>
