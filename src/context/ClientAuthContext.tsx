@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getApiBaseUrl } from "@/lib/api";
 
 type AuthProviderType = "email" | "google";
 
@@ -15,27 +16,23 @@ type ClientUser = {
   provider: AuthProviderType;
 };
 
-type StoredClientAccount = ClientUser & {
-  password: string;
-};
-
 type ClientAuthContextValue = {
   user: ClientUser | null;
   token: string | null;
   isAuthenticated: boolean;
-  loginWithEmail: (input: { email: string; password: string }) => void;
+  loginWithEmail: (input: { email: string; password: string }) => Promise<void>;
   registerWithEmail: (input: {
     name: string;
     email: string;
     password: string;
-  }) => void;
+  }) => Promise<void>;
   completeTokenLogin: (token: string) => void;
   logout: () => void;
 };
 
 const AUTH_STORAGE_KEY = "beautyflow.client.session";
-const ACCOUNT_STORAGE_KEY = "beautyflow.client.accounts";
 const TOKEN_STORAGE_KEY = "beautyflow.client.token";
+const apiUrl = getApiBaseUrl();
 
 const ClientAuthContext = createContext<ClientAuthContextValue | null>(null);
 
@@ -115,9 +112,6 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     const storedToken = readStorage<string | null>(TOKEN_STORAGE_KEY, null);
     return storedToken ? parseJwtPayload(storedToken) : null;
   });
-  const [accounts, setAccounts] = useState<StoredClientAccount[]>(() =>
-    readStorage<StoredClientAccount[]>(ACCOUNT_STORAGE_KEY, []),
-  );
 
   useEffect(() => {
     writeStorage(AUTH_STORAGE_KEY, user);
@@ -126,10 +120,6 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     writeStorage(TOKEN_STORAGE_KEY, token);
   }, [token]);
-
-  useEffect(() => {
-    writeStorage(ACCOUNT_STORAGE_KEY, accounts);
-  }, [accounts]);
 
   useEffect(() => {
     if (!user && token) {
@@ -143,54 +133,52 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token, user]);
 
+  async function authenticateWithEmail(
+    endpoint: "login" | "register",
+    payload: { email: string; password: string; name?: string },
+  ) {
+    const response = await fetch(`${apiUrl}/api/auth/${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as {
+      token?: string;
+      user?: ClientUser;
+      message?: string;
+    };
+
+    if (!response.ok || !data.token || !data.user) {
+      throw new Error(data.message || "Nao foi possivel autenticar a conta.");
+    }
+
+    setToken(data.token);
+    setUser({
+      name: data.user.name?.trim() || "Cliente BeautyFlow",
+      email: normalizeEmail(data.user.email),
+      provider: data.user.provider === "google" ? "google" : "email",
+    });
+  }
+
   const value = useMemo<ClientAuthContextValue>(
     () => ({
       user,
       token,
       isAuthenticated: Boolean(user),
-      loginWithEmail: ({ email, password }) => {
-        const normalizedEmail = normalizeEmail(email);
-        const account = accounts.find(
-          (item) =>
-            normalizeEmail(item.email) === normalizedEmail && item.password === password,
-        );
-
-        if (!account) {
-          throw new Error("E-mail ou senha invalidos.");
-        }
-
-        setToken(null);
-        setUser({
-          name: account.name,
-          email: account.email,
-          provider: account.provider,
-        });
-      },
-      registerWithEmail: ({ name, email, password }) => {
-        const normalizedEmail = normalizeEmail(email);
-        const accountExists = accounts.some(
-          (item) => normalizeEmail(item.email) === normalizedEmail,
-        );
-
-        if (accountExists) {
-          throw new Error("Ja existe uma conta cadastrada com este e-mail.");
-        }
-
-        const newAccount: StoredClientAccount = {
-          name: name.trim(),
-          email: normalizedEmail,
+      loginWithEmail: ({ email, password }) =>
+        authenticateWithEmail("login", {
+          email: normalizeEmail(email),
           password,
-          provider: "email",
-        };
-
-        setAccounts((current) => [...current, newAccount]);
-        setToken(null);
-        setUser({
-          name: newAccount.name,
-          email: newAccount.email,
-          provider: newAccount.provider,
-        });
-      },
+        }),
+      registerWithEmail: ({ name, email, password }) =>
+        authenticateWithEmail("register", {
+          name: name.trim(),
+          email: normalizeEmail(email),
+          password,
+        }),
       completeTokenLogin: (authToken) => {
         const parsedUser = parseJwtPayload(authToken);
 
@@ -206,7 +194,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       },
     }),
-    [accounts, token, user],
+    [token, user],
   );
 
   return (

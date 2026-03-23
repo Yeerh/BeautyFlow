@@ -12,15 +12,15 @@ import {
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
-import { getApiBaseUrl } from "@/lib/api";
 
 type AuthMode = "login" | "register";
 
 const previewImage = "/woman-getting-treatment-hairdresser-shop.jpg";
-const apiUrl = getApiBaseUrl();
 
 function getAuthErrorMessage(errorCode: string | null) {
   switch (errorCode) {
+    case "google_disabled":
+      return "O acesso com Google esta desativado no momento.";
     case "google_not_configured":
       return "O login com Google ainda nao foi configurado no servidor.";
     case "google_auth_failed":
@@ -49,6 +49,7 @@ export function FullScreenSignup() {
     password: "",
     confirmPassword: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const redirectTo = useMemo(() => {
     if (
@@ -78,17 +79,13 @@ export function FullScreenSignup() {
     return <Navigate to={redirectTo} replace />;
   }
 
-  const handleGoogleLogin = () => {
-    setError("");
-    window.location.href = `${apiUrl}/api/auth/google`;
-  };
-
-  const handleLoginSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
     try {
-      loginWithEmail(loginForm);
+      await loginWithEmail(loginForm);
       navigate(redirectTo, { replace: true });
     } catch (currentError) {
       setError(
@@ -96,10 +93,12 @@ export function FullScreenSignup() {
           ? currentError.message
           : "Nao foi possivel entrar na conta.",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleRegisterSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
@@ -108,8 +107,10 @@ export function FullScreenSignup() {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      registerWithEmail({
+      await registerWithEmail({
         name: registerForm.name,
         email: registerForm.email,
         password: registerForm.password,
@@ -121,6 +122,8 @@ export function FullScreenSignup() {
           ? currentError.message
           : "Nao foi possivel criar a conta.",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -161,8 +164,8 @@ export function FullScreenSignup() {
             </h1>
 
             <p className="mt-4 max-w-lg text-sm leading-7 text-white/68">
-              Login por e-mail continua ativo e o acesso com Google agora redireciona
-              para o backend de autenticacao.
+              Crie sua conta com nome, e-mail e senha. O acesso com Google fica
+              desativado por enquanto.
             </p>
           </div>
         </div>
@@ -192,8 +195,8 @@ export function FullScreenSignup() {
               </h2>
               <p className="mt-3 text-sm leading-7 text-white/62">
                 {mode === "login"
-                  ? "Entre com e-mail e senha ou continue com Google para seguir ao calendario."
-                  : "Cadastre os dados do cliente para liberar o acesso a area de agendamento."}
+                  ? "Entre com e-mail e senha para seguir ao calendario."
+                  : "Cadastre nome, e-mail e senha para liberar o acesso a area de agendamento."}
               </p>
             </div>
 
@@ -224,13 +227,13 @@ export function FullScreenSignup() {
 
             <button
               type="button"
-              onClick={handleGoogleLogin}
-              className="mt-6 flex w-full items-center justify-center gap-3 rounded-[1.5rem] border border-white/10 bg-white px-5 py-4 text-sm font-semibold text-[#0B0B0B] transition-transform duration-300 hover:-translate-y-0.5"
+              disabled
+              className="mt-6 flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/10 px-5 py-4 text-sm font-semibold text-white/38"
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#0B0B0B] text-sm font-bold text-white">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white/50">
                 G
               </span>
-              Continuar com Google
+              Google em breve
             </button>
 
             <div className="mt-6 flex items-center gap-4">
@@ -258,6 +261,7 @@ export function FullScreenSignup() {
                       className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
                       placeholder="voce@email.com"
                       type="email"
+                      autoComplete="email"
                       required
                     />
                   </div>
@@ -278,6 +282,7 @@ export function FullScreenSignup() {
                       className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
                       placeholder="Digite sua senha"
                       type="password"
+                      autoComplete="current-password"
                       required
                     />
                   </div>
@@ -285,10 +290,11 @@ export function FullScreenSignup() {
 
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
                 >
-                  <CalendarDays className="h-4 w-4" />
-                  Efetuar login
+                  <CalendarDays className={`h-4 w-4 ${isSubmitting ? "animate-pulse" : ""}`} />
+                  {isSubmitting ? "Entrando..." : "Efetuar login"}
                 </button>
               </form>
             ) : (
@@ -307,6 +313,7 @@ export function FullScreenSignup() {
                       }
                       className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
                       placeholder="Seu nome completo"
+                      autoComplete="name"
                       required
                     />
                   </div>
@@ -327,6 +334,7 @@ export function FullScreenSignup() {
                       className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
                       placeholder="voce@email.com"
                       type="email"
+                      autoComplete="email"
                       required
                     />
                   </div>
@@ -348,6 +356,7 @@ export function FullScreenSignup() {
                         className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
                         placeholder="Crie uma senha"
                         type="password"
+                        autoComplete="new-password"
                         required
                       />
                     </div>
@@ -368,6 +377,7 @@ export function FullScreenSignup() {
                         className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
                         placeholder="Repita a senha"
                         type="password"
+                        autoComplete="new-password"
                         required
                       />
                     </div>
@@ -376,10 +386,11 @@ export function FullScreenSignup() {
 
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  Criar conta
+                  <Sparkles className={`h-4 w-4 ${isSubmitting ? "animate-pulse" : ""}`} />
+                  {isSubmitting ? "Criando conta..." : "Criar conta"}
                 </button>
               </form>
             )}

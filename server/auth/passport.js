@@ -6,8 +6,10 @@ import { getBackendUrl } from "../config/public-urls.js";
 const clientID = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const backendUrl = getBackendUrl();
+const isGoogleAuthEnabled = process.env.GOOGLE_AUTH_ENABLED === "true";
 
-export const isGoogleAuthConfigured = Boolean(clientID && clientSecret);
+export const isGoogleAuthConfigured =
+  isGoogleAuthEnabled && Boolean(clientID && clientSecret);
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
