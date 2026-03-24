@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   LayoutPanelTop,
   LogOut,
+  MapPin,
   Scissors,
   UserRound,
 } from "lucide-react";
@@ -18,6 +19,7 @@ export type SidebarMenuItem = {
 
 export const clientRoutes = {
   bookings: "/cliente-agendamento",
+  history: "/cliente-historico",
   profile: "/cliente-perfil",
 } as const;
 
@@ -36,6 +38,11 @@ export function buildClientMenu(handleLogout: () => void): SidebarMenuItem[] {
       label: "Agendamentos",
       href: clientRoutes.bookings,
       icon: <CalendarDays className="h-5 w-5" />,
+    },
+    {
+      label: "Minhas reservas",
+      href: clientRoutes.history,
+      icon: <MapPin className="h-5 w-5" />,
     },
     {
       label: "Perfil",

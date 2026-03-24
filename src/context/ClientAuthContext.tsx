@@ -90,7 +90,7 @@ function normalizeRole(role?: string | null): AuthRole {
 function normalizeClientUser(user: Partial<AuthUser> & { email: string }): AuthUser {
   return {
     id: Number(user.id ?? 0),
-    name: user.name?.trim() || "Cliente BeautyFlow",
+    name: user.name?.trim() || "BeautyFlow",
     username: user.username?.trim() || null,
     email: normalizeEmail(user.email),
     phone: user.phone?.trim() || null,

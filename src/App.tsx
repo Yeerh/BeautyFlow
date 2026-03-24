@@ -5,6 +5,7 @@ import { AdminAuthPage } from "./pages/AdminAuthPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { ClientAuthPage } from "./pages/ClientAuthPage";
 import { ClientBookingPage } from "./pages/ClientBookingPage";
+import { ClientHistoryPage } from "./pages/ClientHistoryPage";
 import { ClientLocationsPage } from "./pages/ClientLocationsPage";
 import { ClientProfilePage } from "./pages/ClientProfilePage";
 import { LandingPage } from "./pages/LandingPage";
@@ -36,6 +37,14 @@ export default function App() {
         element={
           <ProtectedClientRoute>
             <ClientBookingPage />
+          </ProtectedClientRoute>
+        }
+      />
+      <Route
+        path="/cliente-historico"
+        element={
+          <ProtectedClientRoute>
+            <ClientHistoryPage />
           </ProtectedClientRoute>
         }
       />

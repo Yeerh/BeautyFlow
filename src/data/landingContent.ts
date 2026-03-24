@@ -148,7 +148,7 @@ export const platformServices = [
   },
   {
     icon: "shield",
-    title: "Área do cliente",
+    title: "Portal de agendamentos",
     badge: "Experiência",
     image:
       "https://images.unsplash.com/photo-1516382799247-87df95d790b7?auto=format&fit=crop&w=1200&q=80",

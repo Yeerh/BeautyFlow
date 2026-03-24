@@ -15,7 +15,7 @@ function normalizeEmail(email) {
 function sanitizeUser(user) {
   return {
     id: user.id,
-    name: user.name?.trim() || "Cliente BeautyFlow",
+    name: user.name?.trim() || "BeautyFlow",
     username: user.username?.trim() || null,
     email: user.email,
     phone: user.phone?.trim() || null,

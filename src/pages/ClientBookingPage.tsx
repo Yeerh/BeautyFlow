@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Clock3,
   LoaderCircle,
-  MapPin,
   MessageCircle,
   Phone,
   ShieldCheck,
@@ -104,14 +103,14 @@ function buildWhatsappLink(input: {
   locationName: string;
 }) {
   const message = [
-    "Ola, quero confirmar um agendamento pela area do cliente BeautyFlow.",
+    "Ola, quero confirmar um agendamento pela area BeautyFlow.",
     `Codigo: #${input.booking.id}`,
     `Local: ${input.locationName}`,
     `Servico: ${input.booking.serviceName}`,
     `Preco: ${input.booking.servicePrice}`,
     `Data: ${formatIsoDateLabel(input.booking.scheduledDate)}`,
     `Horario: ${input.booking.scheduledTime}`,
-    `Cliente: ${input.customerName || "Cliente BeautyFlow"}`,
+    `Nome: ${input.customerName || "BeautyFlow"}`,
     `Telefone: ${input.booking.phone}`,
     `E-mail: ${input.customerEmail || "-"}`,
   ].join("\n");
@@ -139,7 +138,7 @@ export function ClientBookingPage() {
   const [savedBooking, setSavedBooking] = useState<SavedBooking | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-  const customerName = user?.name?.trim() || "Cliente BeautyFlow";
+  const customerName = user?.name?.trim() || "BeautyFlow";
   const customerEmail = user?.email?.trim() || "";
   const resolvedPhone = user?.phone?.trim() || fallbackPhone.trim();
   const needsPhoneCompletion = !(user?.phone?.trim() || "");
@@ -436,12 +435,12 @@ export function ClientBookingPage() {
 
   return (
     <RoleSidebarShell
-      badge="Cliente"
+      badge="Reserva"
       title="Confirmar agendamento"
       description="Escolha o serviço do local selecionado, defina data e horário no resumo do pedido e confirme no WhatsApp só depois do registro no banco."
       menuItems={menuItems}
       userName={customerName}
-      userSubtitle={customerEmail || "Área do cliente"}
+      userSubtitle={customerEmail || "Agenda pessoal"}
       userImageUrl={user?.businessPhotoUrl || null}
       actions={
         <>
@@ -493,19 +492,63 @@ export function ClientBookingPage() {
               </div>
 
               <div className="space-y-6 p-5 sm:p-7">
-                <div>
-                  <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
-                    Resumo do pedido
-                  </span>
-                  <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
-                    {location.businessName}
-                  </h2>
-                  <p className="mt-2 text-sm text-white/58">
-                    Proprietario: {location.ownerName}
-                  </p>
-                  <div className="mt-4 flex items-start gap-2 rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#00C896]" />
-                    {location.businessAddress || "Endereco nao informado"}
+                <div className="rounded-[1.75rem] border border-white/10 bg-black/25 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
+                        Resumo do pedido
+                      </span>
+                      <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
+                        {location.businessName}
+                      </h2>
+                      <p className="mt-2 text-sm text-white/58">
+                        Atendimento com {location.ownerName}
+                      </p>
+                    </div>
+
+                    <div className="rounded-[1.25rem] border border-[#00C896]/15 bg-[#00C896]/10 px-4 py-3 text-right">
+                      <span className="block text-xs uppercase tracking-[0.18em] text-[#d7fff4]">
+                        Valor atual
+                      </span>
+                      <span className="mt-2 block text-2xl font-semibold text-white">
+                        {activeService?.priceLabel || "--"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                        Servico
+                      </span>
+                      <span className="mt-2 block font-semibold text-white">
+                        {activeService?.name || "Escolha um servico"}
+                      </span>
+                    </div>
+                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                        Data
+                      </span>
+                      <span className="mt-2 block font-semibold text-white">
+                        {activeDate ? activeDate.label : "Selecionar data"}
+                      </span>
+                    </div>
+                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                        Horario
+                      </span>
+                      <span className="mt-2 block font-semibold text-white">
+                        {selectedTime || "Escolha um horario"}
+                      </span>
+                    </div>
+                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                        Local
+                      </span>
+                      <span className="mt-2 block font-semibold text-white">
+                        {location.businessAddress || "Endereco nao informado"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -559,32 +602,21 @@ export function ClientBookingPage() {
                     </div>
                   ) : null}
 
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Valor
-                      </span>
-                      <span className="mt-2 block text-base font-semibold text-white">
-                        {activeService?.priceLabel || "--"}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setIsScheduleModalOpen(true)}
-                      className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-white/72 transition-all duration-300 hover:border-[#00C896]/30 hover:bg-black/30"
-                    >
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Data e horario
-                      </span>
-                      <span className="mt-2 block text-base font-semibold text-white">
-                        {activeDate ? activeDate.label : "Selecionar"}
-                      </span>
-                      <span className="mt-1 block text-sm text-[#00C896]">
-                        {selectedTime || "Escolha um horario"}
-                      </span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-white/72 transition-all duration-300 hover:border-[#00C896]/30 hover:bg-black/30"
+                  >
+                    <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                      Agenda selecionada
+                    </span>
+                    <span className="mt-2 block text-base font-semibold text-white">
+                      {activeDate ? activeDate.label : "Selecionar"}
+                    </span>
+                    <span className="mt-1 block text-sm text-[#00C896]">
+                      {selectedTime || "Escolha um horario"}
+                    </span>
+                  </button>
                 </div>
 
                 <button
@@ -641,7 +673,7 @@ export function ClientBookingPage() {
                     <span className="text-white/45">Numero:</span> #{savedBooking.id}
                   </div>
                   <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                    <span className="text-white/45">Telefone:</span> {savedBooking.phone}
+                    <span className="text-white/45">Local:</span> {location.businessName}
                   </div>
                   <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
                     <span className="text-white/45">Servico:</span> {savedBooking.serviceName}
@@ -654,6 +686,15 @@ export function ClientBookingPage() {
                     {formatIsoDateLabel(savedBooking.scheduledDate)} as {savedBooking.scheduledTime}
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate(clientRoutes.history)}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  Ver minhas reservas
+                </button>
               </section>
             ) : null}
           </aside>
@@ -662,50 +703,60 @@ export function ClientBookingPage() {
             <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
               <div className="flex items-center gap-3">
                 <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                  <Phone className="h-5 w-5" />
+                  <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-white">Dados da reserva</h2>
+                  <h2 className="text-2xl font-semibold text-white">Dados protegidos</h2>
                   <p className="text-sm text-white/58">
-                    O cadastro do cliente abastece a reserva automaticamente.
+                    Nome, e-mail e telefone nao ficam expostos nesta tela. O sistema usa
+                    seu cadastro apenas para concluir e registrar a reserva.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
-                  <span className="text-xs uppercase tracking-[0.18em] text-white/38">Nome</span>
-                  <p className="mt-3 text-base font-semibold text-white">{customerName}</p>
+              <div className="mt-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                <div className="rounded-[1.75rem] border border-white/8 bg-black/20 p-5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/40">
+                    Privacidade ativa
+                  </p>
+                  <p className="mt-4 text-base leading-7 text-white/72">
+                    Seus dados pessoais entram somente no momento da confirmacao, sem ficar
+                    visiveis no resumo da tela. Assim a reserva continua mais limpa e
+                    focada no horario escolhido.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate(clientRoutes.history)}
+                    className="mt-6 inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/72 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
+                  >
+                    <Store className="h-4 w-4" />
+                    Ver locais agendados
+                  </button>
                 </div>
 
-                <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
-                  <span className="text-xs uppercase tracking-[0.18em] text-white/38">E-mail</span>
-                  <p className="mt-3 break-all text-base font-semibold text-white">
-                    {customerEmail || "Sem e-mail"}
-                  </p>
-                </div>
-
-                <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
-                  <span className="text-xs uppercase tracking-[0.18em] text-white/38">
-                    Telefone cadastrado
-                  </span>
-                  <p className="mt-3 text-base font-semibold text-white">
-                    {user?.phone?.trim() || "Nao encontrado no cadastro"}
-                  </p>
-                </div>
+                {!needsPhoneCompletion ? (
+                  <div className="rounded-[1.75rem] border border-[#00C896]/15 bg-[#00C896]/10 p-5 text-sm leading-7 text-[#d7fff4]">
+                    Seu telefone ja esta validado na conta. Agora basta escolher o
+                    servico, a data e o horario para concluir.
+                  </div>
+                ) : null}
               </div>
 
               {needsPhoneCompletion ? (
                 <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_0.82fr]">
                   <label className="space-y-2">
                     <span className="text-sm text-white/60">Telefone para concluir</span>
-                    <input
-                      value={fallbackPhone}
-                      onChange={(event) => setFallbackPhone(event.target.value)}
-                      className="w-full rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                      placeholder="(81) 99999-9999"
-                      inputMode="tel"
-                    />
+                    <div className="flex items-center gap-3 rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3">
+                      <Phone className="h-4 w-4 text-[#00C896]" />
+                      <input
+                        value={fallbackPhone}
+                        onChange={(event) => setFallbackPhone(event.target.value)}
+                        className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
+                        placeholder="(81) 99999-9999"
+                        inputMode="tel"
+                      />
+                    </div>
                   </label>
 
                   <div className="rounded-[1.5rem] border border-[#f59e0b]/20 bg-[#f59e0b]/10 p-4 text-sm leading-7 text-[#fde7b0]">

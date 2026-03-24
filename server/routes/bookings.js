@@ -28,6 +28,22 @@ function formatPrice(priceCents) {
   return `${(priceCents / 100).toFixed(2).replace(".", ",")}$`;
 }
 
+function mapClientBookingHistoryItem(booking) {
+  return {
+    id: booking.id,
+    locationId: booking.adminId ?? null,
+    locationName:
+      booking.admin?.businessName?.trim() || booking.admin?.name?.trim() || "Local indisponivel",
+    locationAddress: booking.admin?.businessAddress?.trim() || null,
+    serviceName: booking.serviceName,
+    servicePrice: booking.servicePrice,
+    scheduledDate: booking.scheduledDate,
+    scheduledTime: booking.scheduledTime,
+    status: booking.status,
+    createdAt: booking.createdAt,
+  };
+}
+
 router.get("/", async (req, res, next) => {
   try {
     const authenticatedUser = await getAuthenticatedUser(req);
@@ -118,6 +134,64 @@ router.get("/occupied", async (req, res, next) => {
 
     res.json({ items: occupiedBookings });
   } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/mine", async (req, res, next) => {
+  try {
+    const authenticatedUser = await getAuthenticatedUser(req);
+
+    if (!authenticatedUser) {
+      res.status(401).json({
+        message: "Sessao invalida. Entre novamente para continuar.",
+      });
+      return;
+    }
+
+    if (!userHasRole(authenticatedUser, ["CLIENT"])) {
+      res.status(403).json({
+        message: "Este historico esta disponivel apenas para contas pessoais.",
+      });
+      return;
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        userId: authenticatedUser.id,
+      },
+      select: {
+        id: true,
+        adminId: true,
+        serviceName: true,
+        servicePrice: true,
+        scheduledDate: true,
+        scheduledTime: true,
+        status: true,
+        createdAt: true,
+        admin: {
+          select: {
+            businessName: true,
+            name: true,
+            businessAddress: true,
+          },
+        },
+      },
+      orderBy: [{ scheduledAt: "desc" }, { id: "desc" }],
+      take: 100,
+    });
+
+    res.json({
+      items: bookings.map(mapClientBookingHistoryItem),
+    });
+  } catch (error) {
+    if (error?.name === "JsonWebTokenError" || error?.name === "TokenExpiredError") {
+      res.status(401).json({
+        message: "Sessao invalida. Entre novamente para continuar.",
+      });
+      return;
+    }
+
     next(error);
   }
 });
@@ -214,7 +288,7 @@ router.post("/", async (req, res, next) => {
     let bookingPhone = trimmedPhone;
 
     if (clientUser) {
-      bookingName = trimmedName || clientUser.name?.trim() || "Cliente BeautyFlow";
+      bookingName = trimmedName || clientUser.name?.trim() || "BeautyFlow";
       bookingEmail = clientUser.email;
       bookingPhone = trimmedPhone || clientUser.phone?.trim() || "";
 

@@ -84,18 +84,18 @@ export function ClientLocationsPage() {
 
   return (
     <RoleSidebarShell
-      badge="Cliente"
+      badge="Agenda"
       title="Agendamentos"
       description="Escolha a barbearia ou o estúdio disponível antes de seguir para a reserva."
       menuItems={menuItems}
-      userName={user?.name || "Cliente BeautyFlow"}
-      userSubtitle={user?.email || "Área do cliente"}
+      userName={user?.name || "BeautyFlow"}
+      userSubtitle={user?.email || "Agenda pessoal"}
       userImageUrl={user?.businessPhotoUrl || null}
       actions={
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
             <UserRound className="h-4 w-4 text-[#00C896]" />
-            {user?.name || "Cliente BeautyFlow"}
+            {user?.name || "BeautyFlow"}
           </div>
           <button
             type="button"

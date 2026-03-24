@@ -156,6 +156,32 @@ function MobileSidebarItem({
   );
 }
 
+function MobileQuickAccessItem({ item }: { item: SidebarMenuItem }) {
+  const baseClassName =
+    "inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white/78 transition-all duration-200 hover:border-[#00C896]/35 hover:text-white";
+
+  if (item.onClick) {
+    return (
+      <button type="button" onClick={item.onClick} className={baseClassName}>
+        <span className="flex h-4 w-4 items-center justify-center">{item.icon}</span>
+        <span className="whitespace-nowrap">{item.label}</span>
+      </button>
+    );
+  }
+
+  return (
+    <NavLink
+      to={item.href || "/"}
+      className={({ isActive }) =>
+        cn(baseClassName, isActive && "border-[#00C896]/30 bg-[#00C896]/12 text-white")
+      }
+    >
+      <span className="flex h-4 w-4 items-center justify-center">{item.icon}</span>
+      <span className="whitespace-nowrap">{item.label}</span>
+    </NavLink>
+  );
+}
+
 export function RoleSidebarShell({
   badge,
   title,
@@ -224,6 +250,12 @@ export function RoleSidebarShell({
                 <Menu className="h-5 w-5" />
               </button>
             </div>
+
+            <nav className="mt-4 flex gap-3 overflow-x-auto pb-1">
+              {menuItems.map((item) => (
+                <MobileQuickAccessItem key={`quick-${item.label}`} item={item} />
+              ))}
+            </nav>
           </div>
 
           <AnimatePresence>

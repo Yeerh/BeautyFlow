@@ -85,21 +85,21 @@ export function ClientProfilePage() {
 
   return (
     <RoleSidebarShell
-      badge="Cliente"
+      badge="Perfil"
       title="Perfil"
       description="Atualize seus dados e a sua foto de perfil para deixar o atendimento mais completo."
       menuItems={menuItems}
-      userName={user?.name || "Cliente BeautyFlow"}
-      userSubtitle={user?.email || "Área do cliente"}
+      userName={user?.name || "BeautyFlow"}
+      userSubtitle={user?.email || "Agenda pessoal"}
       userImageUrl={user?.businessPhotoUrl || null}
       actions={
         <button
           type="button"
-          onClick={() => navigate(clientRoutes.bookings)}
+          onClick={() => navigate(clientRoutes.history)}
           className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/72 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
         >
           <CalendarDays className="h-4 w-4" />
-          Ir para agendamentos
+          Ver minhas reservas
         </button>
       }
     >
@@ -233,7 +233,7 @@ export function ClientProfilePage() {
             <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
               <span className="text-xs uppercase tracking-[0.18em] text-white/38">Nome atual</span>
               <p className="mt-3 text-base font-semibold text-white">
-                {user?.name || "Cliente BeautyFlow"}
+                {user?.name || "BeautyFlow"}
               </p>
             </div>
 
