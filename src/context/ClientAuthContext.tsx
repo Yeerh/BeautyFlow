@@ -17,6 +17,9 @@ export type AuthUser = {
   email: string;
   phone: string | null;
   businessName: string | null;
+  businessPhotoUrl: string | null;
+  businessAddress: string | null;
+  isActive: boolean;
   provider: "email";
   role: AuthRole;
 };
@@ -87,6 +90,9 @@ function normalizeClientUser(user: Partial<AuthUser> & { email: string }): AuthU
     email: normalizeEmail(user.email),
     phone: user.phone?.trim() || null,
     businessName: user.businessName?.trim() || null,
+    businessPhotoUrl: user.businessPhotoUrl?.trim() || null,
+    businessAddress: user.businessAddress?.trim() || null,
+    isActive: Boolean(user.isActive ?? true),
     provider: "email",
     role: normalizeRole(user.role),
   };
@@ -126,6 +132,9 @@ function parseJwtPayload(token: string): AuthUser | null {
       email: parsedPayload.email,
       phone: parsedPayload.phone,
       businessName: parsedPayload.businessName,
+      businessPhotoUrl: parsedPayload.businessPhotoUrl,
+      businessAddress: parsedPayload.businessAddress,
+      isActive: parsedPayload.isActive,
       role: parsedPayload.role,
     });
   } catch {

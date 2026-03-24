@@ -5,32 +5,25 @@ import {
   Clock3,
   LoaderCircle,
   LogOut,
+  MapPin,
   MessageCircle,
   Phone,
   ShieldCheck,
+  Store,
   UserRound,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { PortalShell } from "@/components/PortalShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
-import { contactLinks, services } from "@/data/landingContent";
+import { contactLinks } from "@/data/landingContent";
 import { bookingAvailability } from "@/data/portalContent";
 import { buildApiUrl } from "@/lib/api";
 
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
 const whatsappBaseNumber = "5581992388506";
 const NETWORK_ERROR_MESSAGE =
-  "Nao foi possivel conectar ao servidor agora. Voce ainda pode navegar no painel e tentar novamente em instantes.";
-
-const serviceSummaries: Record<string, string> = {
-  "Barba premium": "Acabamento preciso com apresentacao limpa e atencao aos detalhes.",
-  "Limpeza de pele": "Cuidado essencial para renovar a pele com toque profissional.",
-  "Estetica facial": "Sessao focada em equilibrio visual, definicao e acabamento refinado.",
-  "Revitalizacao facial": "Tratamento pensado para devolver vitalidade, textura e aparencia saudavel.",
-  "Sobrancelha e contorno": "Desenho tecnico para destacar o rosto com naturalidade.",
-  "Hidratacao glow": "Finalizacao leve para manter a pele uniforme, luminosa e bem cuidada.",
-};
+  "Nao foi possivel conectar ao servidor agora. Tente novamente em alguns instantes.";
 
 type BookingDay = {
   isoDate: string;
@@ -38,6 +31,22 @@ type BookingDay = {
   weekday: string;
   dayNumber: number;
   slots: string[];
+};
+
+type LocationDetails = {
+  id: number;
+  businessName: string;
+  businessPhotoUrl: string | null;
+  businessAddress: string | null;
+  ownerName: string;
+};
+
+type ServiceItem = {
+  id: number;
+  name: string;
+  description: string;
+  priceCents: number;
+  priceLabel: string;
 };
 
 type OccupiedSlot = {
@@ -92,10 +101,12 @@ function buildWhatsappLink(input: {
   booking: SavedBooking;
   customerName: string;
   customerEmail: string;
+  locationName: string;
 }) {
   const message = [
     "Ola, quero confirmar um agendamento pela area do cliente BeautyFlow.",
     `Codigo: #${input.booking.id}`,
+    `Local: ${input.locationName}`,
     `Servico: ${input.booking.serviceName}`,
     `Preco: ${input.booking.servicePrice}`,
     `Data: ${formatIsoDateLabel(input.booking.scheduledDate)}`,
@@ -109,15 +120,18 @@ function buildWhatsappLink(input: {
 }
 
 export function ClientBookingPage() {
+  const { locationId } = useParams();
   const navigate = useNavigate();
   const { logout, token, user } = useClientAuth();
-  const [selectedService, setSelectedService] = useState<string>(services[0]?.title ?? "");
-  const [selectedDate, setSelectedDate] = useState<string>(
-    bookingAvailability[0]?.isoDate ?? "",
-  );
+  const [location, setLocation] = useState<LocationDetails | null>(null);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(bookingAvailability[0]?.isoDate ?? "");
   const [selectedTime, setSelectedTime] = useState("");
   const [fallbackPhone, setFallbackPhone] = useState("");
   const [occupiedSlots, setOccupiedSlots] = useState<OccupiedSlot[]>([]);
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+  const [pageError, setPageError] = useState("");
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const [availabilityError, setAvailabilityError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,23 +139,90 @@ export function ClientBookingPage() {
   const [savedBooking, setSavedBooking] = useState<SavedBooking | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-  const activeService =
-    services.find((service) => service.title === selectedService) ?? services[0];
   const customerName = user?.name?.trim() || "Cliente BeautyFlow";
   const customerEmail = user?.email?.trim() || "";
-  const customerPhone = user?.phone?.trim() || fallbackPhone.trim();
-  const resolvedPhone = customerPhone;
+  const resolvedPhone = user?.phone?.trim() || fallbackPhone.trim();
   const needsPhoneCompletion = !(user?.phone?.trim() || "");
+
+  const activeService =
+    services.find((service) => service.id === selectedServiceId) ?? services[0] ?? null;
+
+  useEffect(() => {
+    if (!services.length) {
+      setSelectedServiceId(null);
+      return;
+    }
+
+    if (!services.some((service) => service.id === selectedServiceId)) {
+      setSelectedServiceId(services[0]?.id ?? null);
+    }
+  }, [selectedServiceId, services]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadLocationDetails() {
+      if (!locationId) {
+        setPageError("Escolha um local antes de continuar com o agendamento.");
+        setIsLoadingPage(false);
+        return;
+      }
+
+      setIsLoadingPage(true);
+      setPageError("");
+
+      try {
+        const response = await fetch(buildApiUrl(`/api/locations?adminId=${locationId}`));
+        const data = (await response.json().catch(() => ({}))) as {
+          location?: LocationDetails;
+          services?: ServiceItem[];
+          message?: string;
+        };
+
+        if (!response.ok || !data.location) {
+          throw new Error(data.message || "Nao foi possivel carregar o local.");
+        }
+
+        const loadedServices = Array.isArray(data.services) ? data.services : [];
+
+        if (!isCancelled) {
+          setLocation(data.location);
+          setServices(loadedServices);
+          setSelectedServiceId((current) => current ?? loadedServices[0]?.id ?? null);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setPageError(getReadableBookingError(error, NETWORK_ERROR_MESSAGE));
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingPage(false);
+        }
+      }
+    }
+
+    loadLocationDetails();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [locationId]);
 
   useEffect(() => {
     let isCancelled = false;
 
     async function loadOccupiedSlots() {
+      if (!locationId) {
+        setOccupiedSlots([]);
+        setIsLoadingAvailability(false);
+        return;
+      }
+
       setIsLoadingAvailability(true);
       setAvailabilityError("");
 
       try {
-        const response = await fetch(buildApiUrl("/api/bookings/occupied"));
+        const response = await fetch(buildApiUrl(`/api/bookings/occupied?adminId=${locationId}`));
         const data = (await response.json().catch(() => ({}))) as {
           items?: OccupiedSlot[];
           message?: string;
@@ -170,7 +251,7 @@ export function ClientBookingPage() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [locationId]);
 
   useEffect(() => {
     if (!isScheduleModalOpen || typeof document === "undefined") {
@@ -179,7 +260,6 @@ export function ClientBookingPage() {
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     return () => {
       document.body.style.overflow = previousOverflow;
     };
@@ -189,21 +269,16 @@ export function ClientBookingPage() {
     const occupiedByDate = new Map<string, Set<string>>();
 
     occupiedSlots.forEach((item) => {
-      const dateSlots = occupiedByDate.get(item.scheduledDate) ?? new Set<string>();
-      dateSlots.add(item.scheduledTime);
-      occupiedByDate.set(item.scheduledDate, dateSlots);
+      const slots = occupiedByDate.get(item.scheduledDate) ?? new Set<string>();
+      slots.add(item.scheduledTime);
+      occupiedByDate.set(item.scheduledDate, slots);
     });
 
     return bookingAvailability
-      .map((day) => {
-        const unavailableSlots = occupiedByDate.get(day.isoDate);
-        const slots = day.slots.filter((slot) => !unavailableSlots?.has(slot));
-
-        return {
-          ...day,
-          slots: [...slots],
-        };
-      })
+      .map((day) => ({
+        ...day,
+        slots: day.slots.filter((slot) => !occupiedByDate.get(day.isoDate)?.has(slot)),
+      }))
       .filter((day) => day.slots.length > 0) as BookingDay[];
   }, [occupiedSlots]);
 
@@ -219,12 +294,7 @@ export function ClientBookingPage() {
       return;
     }
 
-    if (!activeDate) {
-      setSelectedTime("");
-      return;
-    }
-
-    if (!activeDate.slots.includes(selectedTime)) {
+    if (!activeDate || !activeDate.slots.includes(selectedTime)) {
       setSelectedTime("");
     }
   }, [activeDate, availableSchedule, selectedTime]);
@@ -240,7 +310,6 @@ export function ClientBookingPage() {
     const firstDayOfMonth = new Date(year, month - 1, 1);
     const totalDays = new Date(year, month, 0).getDate();
     const mondayOffset = (firstDayOfMonth.getDay() + 6) % 7;
-
     const availableByDate = new Map<string, BookingDay>(
       availableSchedule.map((date) => [date.isoDate, date]),
     );
@@ -251,9 +320,10 @@ export function ClientBookingPage() {
       }
 
       const dayNumber = index - mondayOffset + 1;
-      const isoDate = `${year}-${String(month).padStart(2, "0")}-${String(
-        dayNumber,
-      ).padStart(2, "0")}`;
+      const isoDate = `${year}-${String(month).padStart(2, "0")}-${String(dayNumber).padStart(
+        2,
+        "0",
+      )}`;
 
       return availableByDate.get(isoDate) ?? { isoDate, dayNumber, disabled: true };
     }) as CalendarCell[];
@@ -273,10 +343,14 @@ export function ClientBookingPage() {
   }, [activeDate, availableSchedule]);
 
   const canProceed =
+    Boolean(location) &&
+    Boolean(activeService) &&
     Boolean(activeDate) &&
     Boolean(selectedTime) &&
     resolvedPhone.length > 7 &&
     !isLoadingAvailability;
+
+  const scheduleLabel = activeDate ? `${activeDate.weekday}, ${activeDate.label}` : "Sem agenda aberta";
 
   const handleLogout = () => {
     logout();
@@ -284,7 +358,7 @@ export function ClientBookingPage() {
   };
 
   const handleConfirmBooking = async () => {
-    if (!canProceed || !activeDate) {
+    if (!canProceed || !activeDate || !activeService || !location) {
       return;
     }
 
@@ -300,9 +374,9 @@ export function ClientBookingPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
+          adminId: location.id,
+          serviceId: activeService.id,
           ...(needsPhoneCompletion ? { phone: resolvedPhone } : {}),
-          serviceName: activeService.title,
-          servicePrice: activeService.price,
           scheduledDate: activeDate.isoDate,
           scheduledTime: selectedTime,
         }),
@@ -317,31 +391,32 @@ export function ClientBookingPage() {
         throw new Error(data.message || "Nao foi possivel registrar o agendamento.");
       }
 
-      const booking = data.booking;
-
-      setSavedBooking(booking);
+      setSavedBooking(data.booking);
       setOccupiedSlots((current) => {
         const alreadyExists = current.some(
           (item) =>
-            item.scheduledDate === booking.scheduledDate &&
-            item.scheduledTime === booking.scheduledTime,
+            item.scheduledDate === data.booking?.scheduledDate &&
+            item.scheduledTime === data.booking?.scheduledTime,
         );
 
-        return alreadyExists
-          ? current
-          : [
-              ...current,
-              {
-                scheduledDate: booking.scheduledDate,
-                scheduledTime: booking.scheduledTime,
-              },
-            ];
+        if (alreadyExists) {
+          return current;
+        }
+
+        return [
+          ...current,
+          {
+            scheduledDate: data.booking?.scheduledDate ?? "",
+            scheduledTime: data.booking?.scheduledTime ?? "",
+          },
+        ];
       });
 
       const whatsappLink = buildWhatsappLink({
-        booking,
+        booking: data.booking,
         customerName,
         customerEmail,
+        locationName: location.businessName,
       });
 
       window.open(whatsappLink, "_blank", "noopener,noreferrer");
@@ -357,14 +432,11 @@ export function ClientBookingPage() {
     }
   };
 
-  const scheduleLabel = activeDate ? `${activeDate.weekday}, ${activeDate.label}` : "Sem agenda aberta";
-  const serviceSummary = serviceSummaries[activeService.title] ?? activeService.description;
-
   return (
     <PortalShell
       badge="Cliente"
-      title="Agendamento da sua conta"
-      description="Escolha o servico no resumo do pedido, selecione data e horario e confirme no WhatsApp somente apos o registro no banco."
+      title="Confirmar agendamento"
+      description="Escolha o servico do local selecionado, defina data e horario no resumo do pedido e confirme no WhatsApp so depois do registro no banco."
       actions={
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -382,224 +454,264 @@ export function ClientBookingPage() {
         </>
       }
     >
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <aside className="order-first space-y-6 xl:order-last xl:sticky xl:top-28">
-          <section className="overflow-hidden rounded-[2rem] border border-[#00C896]/15 bg-[linear-gradient(180deg,rgba(0,200,150,0.12),rgba(255,255,255,0.03))] shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
-            <img
-              src={activeService.image}
-              alt={activeService.title}
-              className="h-44 w-full object-cover sm:h-56"
-            />
+      {pageError ? (
+        <div className="flex items-start gap-3 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          {pageError}
+        </div>
+      ) : null}
 
-            <div className="space-y-6 p-5 sm:p-7">
-              <div>
-                <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
-                  Resumo do pedido
-                </span>
-                <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
-                  {activeService.title}
-                </h2>
-                <p className="mt-3 text-sm leading-7 text-white/68">{serviceSummary}</p>
+      {isLoadingPage ? (
+        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-6 py-10 text-sm text-white/62 shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
+          Carregando estabelecimento e servicos...
+        </div>
+      ) : null}
+
+      {!isLoadingPage && location ? (
+        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <aside className="order-first space-y-6 xl:order-last xl:sticky xl:top-28">
+            <section className="overflow-hidden rounded-[2rem] border border-[#00C896]/15 bg-[linear-gradient(180deg,rgba(0,200,150,0.12),rgba(255,255,255,0.03))] shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
+              <div className="relative h-48 sm:h-60">
+                {location.businessPhotoUrl ? (
+                  <img
+                    src={location.businessPhotoUrl}
+                    alt={location.businessName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#0f172a,#111827,#14532d)]">
+                    <Store className="h-10 w-10 text-white/65" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,11,11,0.05),rgba(11,11,11,0.82))]" />
               </div>
 
-              {availabilityError ? (
-                <div className="flex items-start gap-3 rounded-[1.5rem] border border-[#f59e0b]/25 bg-[#f59e0b]/10 px-4 py-3 text-sm text-[#fde7b0]">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  {availabilityError}
-                </div>
-              ) : null}
-
-              <div className="space-y-3">
-                <label className="block rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                  <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                    Servico
+              <div className="space-y-6 p-5 sm:p-7">
+                <div>
+                  <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
+                    Resumo do pedido
                   </span>
-                  <select
-                    value={selectedService}
-                    onChange={(event) => setSelectedService(event.target.value)}
-                    className="mt-2 w-full bg-transparent text-base font-semibold text-white outline-none"
-                  >
-                    {services.map((service) => (
-                      <option
-                        key={service.title}
-                        value={service.title}
-                        className="bg-[#101010] text-white"
-                      >
-                        {service.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
+                    {location.businessName}
+                  </h2>
+                  <p className="mt-2 text-sm text-white/58">
+                    Proprietario: {location.ownerName}
+                  </p>
+                  <div className="mt-4 flex items-start gap-2 rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#00C896]" />
+                    {location.businessAddress || "Endereco nao informado"}
+                  </div>
+                </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                {availabilityError ? (
+                  <div className="flex items-start gap-3 rounded-[1.5rem] border border-[#f59e0b]/25 bg-[#f59e0b]/10 px-4 py-3 text-sm text-[#fde7b0]">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {availabilityError}
+                  </div>
+                ) : null}
+
+                <div className="space-y-3">
+                  <label className="block rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                      Servico
+                    </span>
+                    <select
+                      value={selectedServiceId ?? ""}
+                      onChange={(event) => setSelectedServiceId(Number(event.target.value))}
+                      className="mt-2 w-full bg-transparent text-base font-semibold text-white outline-none"
+                      disabled={!services.length}
+                    >
+                      {!services.length ? (
+                        <option value="" className="bg-[#101010] text-white">
+                          Nenhum servico ativo
+                        </option>
+                      ) : null}
+                      {services.map((service) => (
+                        <option
+                          key={service.id}
+                          value={service.id}
+                          className="bg-[#101010] text-white"
+                        >
+                          {service.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
                   <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
                     <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                      Investimento
+                      Descricao
                     </span>
-                    <span className="mt-2 block text-base font-semibold text-white">
-                      {activeService.price}
+                    <span className="mt-2 block leading-6 text-white/72">
+                      {activeService?.description || "Atendimento profissional neste local."}
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleModalOpen(true)}
-                    className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-white/72 transition-all duration-300 hover:border-[#00C896]/30 hover:bg-black/30"
-                  >
-                    <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                      Data e horario
-                    </span>
-                    <span className="mt-2 block text-base font-semibold text-white">
-                      {activeDate ? activeDate.label : "Selecionar"}
-                    </span>
-                    <span className="mt-1 block text-sm text-[#00C896]">
-                      {selectedTime || "Escolha um horario"}
-                    </span>
-                  </button>
+                  {!services.length ? (
+                    <div className="rounded-[1.25rem] border border-[#f59e0b]/20 bg-[#f59e0b]/10 px-4 py-3 text-sm text-[#fde7b0]">
+                      Este local ainda nao possui servicos ativos para agendamento.
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                        Valor
+                      </span>
+                      <span className="mt-2 block text-base font-semibold text-white">
+                        {activeService?.priceLabel || "--"}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsScheduleModalOpen(true)}
+                      className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-white/72 transition-all duration-300 hover:border-[#00C896]/30 hover:bg-black/30"
+                    >
+                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                        Data e horario
+                      </span>
+                      <span className="mt-2 block text-base font-semibold text-white">
+                        {activeDate ? activeDate.label : "Selecionar"}
+                      </span>
+                      <span className="mt-1 block text-sm text-[#00C896]">
+                        {selectedTime || "Escolha um horario"}
+                      </span>
+                    </button>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsScheduleModalOpen(true)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  Escolher data e horario
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmBooking}
+                  disabled={!canProceed || isSubmitting}
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition-all duration-300 ${
+                    canProceed && !isSubmitting
+                      ? "bg-[#00C896] text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
+                      : "cursor-not-allowed border border-white/10 bg-white/5 text-white/38"
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4" />
+                  )}
+                  {isSubmitting ? "Salvando agendamento..." : "Salvar e abrir WhatsApp"}
+                </button>
+
+                {submitError ? (
+                  <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+                    {submitError}
+                  </div>
+                ) : null}
               </div>
+            </section>
 
-              <button
-                type="button"
-                onClick={() => setIsScheduleModalOpen(true)}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
-              >
-                <CalendarDays className="h-4 w-4" />
-                Escolher data e horario
-              </button>
-
-              <button
-                type="button"
-                onClick={handleConfirmBooking}
-                disabled={!canProceed || isSubmitting}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition-all duration-300 ${
-                  canProceed && !isSubmitting
-                    ? "bg-[#00C896] text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
-                    : "cursor-not-allowed border border-white/10 bg-white/5 text-white/38"
-                }`}
-              >
-                {isSubmitting ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MessageCircle className="h-4 w-4" />
-                )}
-                {isSubmitting ? "Salvando agendamento..." : "Salvar e abrir WhatsApp"}
-              </button>
-
-              <p className="text-xs leading-6 text-white/45">
-                A reserva so abre o WhatsApp depois que os dados forem registrados no banco.
-              </p>
-
-              {submitError ? (
-                <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                  {submitError}
+            {savedBooking ? (
+              <section className="rounded-[2rem] border border-[#00C896]/15 bg-[linear-gradient(180deg,rgba(0,200,150,0.12),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+                <div className="flex items-start gap-3">
+                  <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white">Agendamento registrado</h2>
+                    <p className="mt-2 text-sm leading-6 text-white/65">
+                      A reserva foi salva no banco e o WhatsApp foi liberado em seguida.
+                    </p>
+                  </div>
                 </div>
-              ) : null}
-            </div>
-          </section>
 
-          {savedBooking ? (
-            <section className="rounded-[2rem] border border-[#00C896]/15 bg-[linear-gradient(180deg,rgba(0,200,150,0.12),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-              <div className="flex items-start gap-3">
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="text-white/45">Numero:</span> #{savedBooking.id}
+                  </div>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="text-white/45">Telefone:</span> {savedBooking.phone}
+                  </div>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="text-white/45">Servico:</span> {savedBooking.serviceName}
+                  </div>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="text-white/45">Status:</span> {getStatusLabel(savedBooking.status)}
+                  </div>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72 sm:col-span-2">
+                    <span className="text-white/45">Atendimento:</span>{" "}
+                    {formatIsoDateLabel(savedBooking.scheduledDate)} as {savedBooking.scheduledTime}
+                  </div>
+                </div>
+              </section>
+            ) : null}
+          </aside>
+
+          <div className="space-y-6">
+            <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+              <div className="flex items-center gap-3">
                 <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                  <ShieldCheck className="h-5 w-5" />
+                  <Phone className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-white">
-                    Agendamento registrado
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-white/65">
-                    O sistema salvou a reserva e liberou a confirmacao no WhatsApp.
+                  <h2 className="text-2xl font-semibold text-white">Dados da reserva</h2>
+                  <p className="text-sm text-white/58">
+                    O cadastro do cliente abastece a reserva automaticamente.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                  <span className="text-white/45">Numero:</span> #{savedBooking.id}
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
+                  <span className="text-xs uppercase tracking-[0.18em] text-white/38">Nome</span>
+                  <p className="mt-3 text-base font-semibold text-white">{customerName}</p>
                 </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                  <span className="text-white/45">Telefone:</span> {savedBooking.phone}
+
+                <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
+                  <span className="text-xs uppercase tracking-[0.18em] text-white/38">E-mail</span>
+                  <p className="mt-3 break-all text-base font-semibold text-white">
+                    {customerEmail || "Sem e-mail"}
+                  </p>
                 </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                  <span className="text-white/45">Servico:</span> {savedBooking.serviceName}
-                </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                  <span className="text-white/45">Status:</span>{" "}
-                  {getStatusLabel(savedBooking.status)}
-                </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72 sm:col-span-2">
-                  <span className="text-white/45">Atendimento:</span>{" "}
-                  {formatIsoDateLabel(savedBooking.scheduledDate)} as {savedBooking.scheduledTime}
+
+                <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
+                  <span className="text-xs uppercase tracking-[0.18em] text-white/38">
+                    Telefone cadastrado
+                  </span>
+                  <p className="mt-3 text-base font-semibold text-white">
+                    {user?.phone?.trim() || "Nao encontrado no cadastro"}
+                  </p>
                 </div>
               </div>
+
+              {needsPhoneCompletion ? (
+                <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_0.82fr]">
+                  <label className="space-y-2">
+                    <span className="text-sm text-white/60">Telefone para concluir</span>
+                    <input
+                      value={fallbackPhone}
+                      onChange={(event) => setFallbackPhone(event.target.value)}
+                      className="w-full rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                      placeholder="(81) 99999-9999"
+                      inputMode="tel"
+                    />
+                  </label>
+
+                  <div className="rounded-[1.5rem] border border-[#f59e0b]/20 bg-[#f59e0b]/10 p-4 text-sm leading-7 text-[#fde7b0]">
+                    Seu cadastro antigo nao tem telefone salvo. Informe o numero uma vez
+                    para concluir esta reserva.
+                  </div>
+                </div>
+              ) : null}
             </section>
-          ) : null}
-        </aside>
-
-        <div className="space-y-6">
-          <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                <Phone className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-semibold text-white">Dados da reserva</h2>
-                <p className="text-sm text-white/58">
-                  Seus dados cadastrais sao usados automaticamente na reserva.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
-                <span className="text-xs uppercase tracking-[0.18em] text-white/38">
-                  Nome
-                </span>
-                <p className="mt-3 text-base font-semibold text-white">{customerName}</p>
-              </div>
-
-              <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
-                <span className="text-xs uppercase tracking-[0.18em] text-white/38">
-                  E-mail
-                </span>
-                <p className="mt-3 break-all text-base font-semibold text-white">
-                  {customerEmail || "Sem e-mail"}
-                </p>
-              </div>
-
-              <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
-                <span className="text-xs uppercase tracking-[0.18em] text-white/38">
-                  Telefone cadastrado
-                </span>
-                <p className="mt-3 text-base font-semibold text-white">
-                  {customerPhone || "Nao encontrado no cadastro"}
-                </p>
-              </div>
-            </div>
-
-            {needsPhoneCompletion ? (
-              <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_0.82fr]">
-                <label className="space-y-2">
-                  <span className="text-sm text-white/60">Telefone para concluir</span>
-                  <input
-                    value={fallbackPhone}
-                    onChange={(event) => setFallbackPhone(event.target.value)}
-                    className="w-full rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                    placeholder="(81) 99999-9999"
-                    inputMode="tel"
-                  />
-                </label>
-
-                <div className="rounded-[1.5rem] border border-[#f59e0b]/20 bg-[#f59e0b]/10 p-4 text-sm leading-7 text-[#fde7b0]">
-                  Seu cadastro antigo nao tem telefone salvo. Informe o numero uma vez
-                  para concluir a reserva.
-                </div>
-              </div>
-            ) : null}
-          </section>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {isScheduleModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-4 py-6 sm:items-center">
@@ -609,11 +721,9 @@ export function ClientBookingPage() {
                 <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
                   Agenda
                 </span>
-                <h2 className="mt-4 text-2xl font-semibold text-white">
-                  Escolha data e horario
-                </h2>
+                <h2 className="mt-4 text-2xl font-semibold text-white">Escolha data e horario</h2>
                 <p className="mt-2 text-sm text-white/58">
-                  Clique em um dia disponivel para ver os horarios abertos daquele atendimento.
+                  Clique em um dia disponivel para abrir os horarios livres daquele local.
                 </p>
               </div>
 
@@ -642,13 +752,6 @@ export function ClientBookingPage() {
                   </div>
                   <CalendarDays className="h-5 w-5 text-[#00C896]" />
                 </div>
-
-                {availabilityError ? (
-                  <div className="mt-5 flex items-start gap-3 rounded-[1.25rem] border border-[#f59e0b]/25 bg-[#f59e0b]/10 px-4 py-3 text-sm text-[#fde7b0]">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    {availabilityError}
-                  </div>
-                ) : null}
 
                 <div className="mt-6 grid grid-cols-7 gap-2 text-center text-[11px] uppercase tracking-[0.18em] text-white/35">
                   {weekDays.map((item) => (
@@ -743,6 +846,9 @@ export function ClientBookingPage() {
                     Selecao atual
                   </p>
                   <p className="mt-3 text-base font-semibold text-white">
+                    {activeService?.name || "Sem servico"}
+                  </p>
+                  <p className="mt-1 text-sm text-white/55">
                     {activeDate ? activeDate.label : "Sem data"}
                   </p>
                   <p className="mt-1 text-sm text-[#00C896]">

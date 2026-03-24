@@ -3,6 +3,7 @@ import cors from "cors";
 import authRouter from "./routes/auth.js";
 import adminRouter from "./routes/admin.js";
 import bookingsRouter from "./routes/bookings.js";
+import locationsRouter from "./routes/locations.js";
 import { ensureSuperAdminUser } from "./auth/super-admin.js";
 import { getFrontendUrl } from "./config/public-urls.js";
 
@@ -28,6 +29,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/bookings", bookingsRouter);
+app.use("/api/locations", locationsRouter);
 
 app.use((error, _req, res, _next) => {
   console.error(error);

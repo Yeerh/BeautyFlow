@@ -5,6 +5,7 @@ import { AdminAuthPage } from "./pages/AdminAuthPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { ClientAuthPage } from "./pages/ClientAuthPage";
 import { ClientBookingPage } from "./pages/ClientBookingPage";
+import { ClientLocationsPage } from "./pages/ClientLocationsPage";
 import { LandingPage } from "./pages/LandingPage";
 
 export default function App() {
@@ -23,6 +24,14 @@ export default function App() {
       <Route path="/cliente-acesso" element={<ClientAuthPage />} />
       <Route
         path="/cliente-agendamento"
+        element={
+          <ProtectedClientRoute>
+            <ClientLocationsPage />
+          </ProtectedClientRoute>
+        }
+      />
+      <Route
+        path="/cliente-agendamento/:locationId"
         element={
           <ProtectedClientRoute>
             <ClientBookingPage />

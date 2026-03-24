@@ -19,6 +19,9 @@ function sanitizeUser(user) {
     email: user.email,
     phone: user.phone?.trim() || null,
     businessName: user.businessName?.trim() || null,
+    businessPhotoUrl: user.businessPhotoUrl?.trim() || null,
+    businessAddress: user.businessAddress?.trim() || null,
+    isActive: Boolean(user.isActive ?? true),
     role: String(user.role ?? "CLIENT").toLowerCase(),
     provider: String(user.provider ?? "EMAIL").toLowerCase(),
   };
@@ -90,6 +93,7 @@ router.post("/register", async (req, res, next) => {
         password: hashedPassword,
         provider: "EMAIL",
         role: "CLIENT",
+        isActive: true,
       },
     });
 
