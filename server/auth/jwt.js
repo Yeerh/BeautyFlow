@@ -7,7 +7,11 @@ export function signAuthToken(user) {
     {
       id: user.id,
       name: user.name,
+      username: user.username,
       email: user.email,
+      phone: user.phone,
+      businessName: user.businessName,
+      role: String(user.role ?? "CLIENT").toLowerCase(),
       provider: String(user.provider ?? "EMAIL").toLowerCase(),
     },
     jwtSecret,

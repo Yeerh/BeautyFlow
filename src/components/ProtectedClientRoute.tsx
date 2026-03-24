@@ -5,7 +5,7 @@ import { useClientAuth } from "@/context/ClientAuthContext";
 
 export function ProtectedClientRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const { isAuthenticated } = useClientAuth();
+  const { isAuthenticated, user } = useClientAuth();
 
   if (!isAuthenticated) {
     return (
@@ -15,6 +15,10 @@ export function ProtectedClientRoute({ children }: { children: ReactNode }) {
         state={{ from: location }}
       />
     );
+  }
+
+  if (user && user.role !== "client") {
+    return <Navigate to="/admin" replace state={{ from: location }} />;
   }
 
   return <>{children}</>;

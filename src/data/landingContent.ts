@@ -10,7 +10,7 @@ export const contactLinks = {
     "https://wa.me/5511999990000?text=Olá,%20quero%20agendar%20um%20atendimento%20pela%20BeautyFlow.",
   serviceWhatsapp:
     "https://wa.me/5581992388506?text=quero%20o%20serviço%20beauty%20para%20minha%20loja.",
-  admin: "/admin",
+  admin: "/admin-acesso",
   clientPortal: "/cliente-acesso",
   clientBooking: "/cliente-agendamento",
   instagram: "https://instagram.com/beautyflow",

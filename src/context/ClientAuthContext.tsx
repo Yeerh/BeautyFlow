@@ -8,22 +8,31 @@ import {
 } from "react";
 import { buildApiUrl } from "@/lib/api";
 
-type ClientUser = {
+export type AuthRole = "client" | "admin" | "super_admin";
+
+export type AuthUser = {
+  id: number;
   name: string;
+  username: string | null;
   email: string;
+  phone: string | null;
+  businessName: string | null;
   provider: "email";
+  role: AuthRole;
 };
 
 type ClientAuthContextValue = {
-  user: ClientUser | null;
+  user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
-  loginWithEmail: (input: { email: string; password: string }) => Promise<void>;
+  login: (input: { identifier: string; password: string }) => Promise<AuthUser>;
+  loginWithEmail: (input: { email: string; password: string }) => Promise<AuthUser>;
   registerWithEmail: (input: {
     name: string;
     email: string;
+    phone: string;
     password: string;
-  }) => Promise<void>;
+  }) => Promise<AuthUser>;
   logout: () => void;
 };
 
@@ -62,7 +71,28 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function parseJwtPayload(token: string): ClientUser | null {
+function normalizeRole(role?: string | null): AuthRole {
+  if (role === "admin" || role === "super_admin") {
+    return role;
+  }
+
+  return "client";
+}
+
+function normalizeClientUser(user: Partial<AuthUser> & { email: string }): AuthUser {
+  return {
+    id: Number(user.id ?? 0),
+    name: user.name?.trim() || "Cliente BeautyFlow",
+    username: user.username?.trim() || null,
+    email: normalizeEmail(user.email),
+    phone: user.phone?.trim() || null,
+    businessName: user.businessName?.trim() || null,
+    provider: "email",
+    role: normalizeRole(user.role),
+  };
+}
+
+function parseJwtPayload(token: string): AuthUser | null {
   if (typeof window === "undefined") {
     return null;
   }
@@ -83,28 +113,24 @@ function parseJwtPayload(token: string): ClientUser | null {
     const decodedBytes = Uint8Array.from(decodedPayload, (char) => char.charCodeAt(0));
     const parsedPayload = JSON.parse(
       new TextDecoder().decode(decodedBytes),
-    ) as Partial<ClientUser>;
+    ) as Partial<AuthUser>;
 
     if (!parsedPayload.email) {
       return null;
     }
 
-    return {
-      name: parsedPayload.name?.trim() || "Cliente BeautyFlow",
-      email: normalizeEmail(parsedPayload.email),
-      provider: "email",
-    };
+    return normalizeClientUser({
+      id: parsedPayload.id,
+      name: parsedPayload.name,
+      username: parsedPayload.username,
+      email: parsedPayload.email,
+      phone: parsedPayload.phone,
+      businessName: parsedPayload.businessName,
+      role: parsedPayload.role,
+    });
   } catch {
     return null;
   }
-}
-
-function normalizeClientUser(user: ClientUser): ClientUser {
-  return {
-    name: user.name?.trim() || "Cliente BeautyFlow",
-    email: normalizeEmail(user.email),
-    provider: "email",
-  };
 }
 
 function getReadableFetchError(error: unknown, fallbackMessage: string) {
@@ -122,11 +148,11 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
     readStorage<string | null>(TOKEN_STORAGE_KEY, null),
   );
-  const [user, setUser] = useState<ClientUser | null>(() => {
-    const storedUser = readStorage<ClientUser | null>(AUTH_STORAGE_KEY, null);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const storedUser = readStorage<AuthUser | null>(AUTH_STORAGE_KEY, null);
 
-    if (storedUser) {
-      return storedUser;
+    if (storedUser?.email) {
+      return normalizeClientUser(storedUser);
     }
 
     const storedToken = readStorage<string | null>(TOKEN_STORAGE_KEY, null);
@@ -153,7 +179,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token, user]);
 
-  function persistSession(authToken: string, authUser: ClientUser) {
+  function persistSession(authToken: string, authUser: AuthUser) {
     const normalizedUser = normalizeClientUser(authUser);
 
     writeStorage(TOKEN_STORAGE_KEY, authToken);
@@ -169,9 +195,9 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  async function authenticateWithEmail(
+  async function authenticate(
     endpoint: "login" | "register",
-    payload: { email: string; password: string; name?: string },
+    payload: Record<string, string>,
   ) {
     let lastError: Error | null = null;
 
@@ -187,7 +213,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
 
         const data = (await response.json().catch(() => ({}))) as {
           token?: string;
-          user?: ClientUser;
+          user?: AuthUser;
           message?: string;
         };
 
@@ -195,8 +221,9 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
           throw new Error(data.message || "Nao foi possivel autenticar a conta.");
         }
 
-        persistSession(data.token, data.user);
-        return;
+        const authenticatedUser = normalizeClientUser(data.user);
+        persistSession(data.token, authenticatedUser);
+        return authenticatedUser;
       } catch (error) {
         const readableError = getReadableFetchError(
           error,
@@ -223,15 +250,21 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
       user,
       token,
       isAuthenticated: Boolean(user || token),
-      loginWithEmail: ({ email, password }) =>
-        authenticateWithEmail("login", {
-          email: normalizeEmail(email),
+      login: ({ identifier, password }) =>
+        authenticate("login", {
+          identifier: identifier.trim(),
           password,
         }),
-      registerWithEmail: ({ name, email, password }) =>
-        authenticateWithEmail("register", {
+      loginWithEmail: ({ email, password }) =>
+        authenticate("login", {
+          identifier: normalizeEmail(email),
+          password,
+        }),
+      registerWithEmail: ({ name, email, phone, password }) =>
+        authenticate("register", {
           name: name.trim(),
           email: normalizeEmail(email),
+          phone: phone.trim(),
           password,
         }),
       logout: () => {

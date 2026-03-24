@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
-  CheckCircle2,
   Clock3,
   LoaderCircle,
   LogOut,
@@ -117,7 +116,7 @@ export function ClientBookingPage() {
     bookingAvailability[0]?.isoDate ?? "",
   );
   const [selectedTime, setSelectedTime] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [fallbackPhone, setFallbackPhone] = useState("");
   const [occupiedSlots, setOccupiedSlots] = useState<OccupiedSlot[]>([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const [availabilityError, setAvailabilityError] = useState("");
@@ -130,6 +129,9 @@ export function ClientBookingPage() {
     services.find((service) => service.title === selectedService) ?? services[0];
   const customerName = user?.name?.trim() || "Cliente BeautyFlow";
   const customerEmail = user?.email?.trim() || "";
+  const customerPhone = user?.phone?.trim() || fallbackPhone.trim();
+  const resolvedPhone = customerPhone;
+  const needsPhoneCompletion = !(user?.phone?.trim() || "");
 
   useEffect(() => {
     let isCancelled = false;
@@ -273,7 +275,7 @@ export function ClientBookingPage() {
   const canProceed =
     Boolean(activeDate) &&
     Boolean(selectedTime) &&
-    contactPhone.trim().length > 7 &&
+    resolvedPhone.length > 7 &&
     !isLoadingAvailability;
 
   const handleLogout = () => {
@@ -298,7 +300,7 @@ export function ClientBookingPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          phone: contactPhone,
+          ...(needsPhoneCompletion ? { phone: resolvedPhone } : {}),
           serviceName: activeService.title,
           servicePrice: activeService.price,
           scheduledDate: activeDate.isoDate,
@@ -362,7 +364,7 @@ export function ClientBookingPage() {
     <PortalShell
       badge="Cliente"
       title="Agendamento da sua conta"
-      description="Escolha um servico, selecione data e horario dentro do resumo do pedido e confirme no WhatsApp somente apos o registro no banco."
+      description="Escolha o servico no resumo do pedido, selecione data e horario e confirme no WhatsApp somente apos o registro no banco."
       actions={
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -407,39 +409,53 @@ export function ClientBookingPage() {
                 </div>
               ) : null}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+              <div className="space-y-3">
+                <label className="block rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
                   <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                    Investimento
+                    Servico
                   </span>
-                  <span className="mt-2 block text-base font-semibold text-white">
-                    {activeService.price}
-                  </span>
-                </div>
+                  <select
+                    value={selectedService}
+                    onChange={(event) => setSelectedService(event.target.value)}
+                    className="mt-2 w-full bg-transparent text-base font-semibold text-white outline-none"
+                  >
+                    {services.map((service) => (
+                      <option
+                        key={service.title}
+                        value={service.title}
+                        className="bg-[#101010] text-white"
+                      >
+                        {service.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                <button
-                  type="button"
-                  onClick={() => setIsScheduleModalOpen(true)}
-                  className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-white/72 transition-all duration-300 hover:border-[#00C896]/30 hover:bg-black/30"
-                >
-                  <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                    Data e horario
-                  </span>
-                  <span className="mt-2 block text-base font-semibold text-white">
-                    {activeDate ? activeDate.label : "Selecionar"}
-                  </span>
-                  <span className="mt-1 block text-sm text-[#00C896]">
-                    {selectedTime || "Escolha um horario"}
-                  </span>
-                </button>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                      Investimento
+                    </span>
+                    <span className="mt-2 block text-base font-semibold text-white">
+                      {activeService.price}
+                    </span>
+                  </div>
 
-                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72 sm:col-span-2">
-                  <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                    Contato
-                  </span>
-                  <span className="mt-2 block text-base font-semibold text-white">
-                    {contactPhone || "Informe o numero abaixo"}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-white/72 transition-all duration-300 hover:border-[#00C896]/30 hover:bg-black/30"
+                  >
+                    <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                      Data e horario
+                    </span>
+                    <span className="mt-2 block text-base font-semibold text-white">
+                      {activeDate ? activeDate.label : "Selecionar"}
+                    </span>
+                    <span className="mt-1 block text-sm text-[#00C896]">
+                      {selectedTime || "Escolha um horario"}
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -525,80 +541,62 @@ export function ClientBookingPage() {
           <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
             <div className="flex items-center gap-3">
               <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-semibold text-white">Servicos</h2>
-                <p className="text-sm text-white/58">
-                  Opcoes mais objetivas para uma escolha rapida e profissional.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {services.map((service) => {
-                const isActive = service.title === selectedService;
-                const serviceCopy = serviceSummaries[service.title] ?? service.description;
-
-                return (
-                  <button
-                    key={service.title}
-                    type="button"
-                    onClick={() => setSelectedService(service.title)}
-                    className={`rounded-[1.5rem] border p-4 text-left transition-all duration-300 ${
-                      isActive
-                        ? "border-[#00C896]/35 bg-[linear-gradient(180deg,rgba(0,200,150,0.12),rgba(255,255,255,0.03))] shadow-[0_14px_40px_rgba(0,200,150,0.12)]"
-                        : "border-white/10 bg-black/20 hover:border-[#00C896]/25 hover:bg-black/30"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-lg font-semibold text-white">{service.title}</p>
-                        <p className="mt-2 text-sm leading-6 text-white/62">{serviceCopy}</p>
-                      </div>
-                      <span className="rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#00C896]">
-                        {service.price}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
                 <Phone className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-2xl font-semibold text-white">Dados da reserva</h2>
                 <p className="text-sm text-white/58">
-                  Informe somente o numero para contato. Nome e e-mail da conta entram no registro automaticamente.
+                  Seus dados cadastrais sao usados automaticamente na reserva.
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_0.72fr]">
-              <label className="space-y-2">
-                <span className="text-sm text-white/60">Numero / Telefone</span>
-                <input
-                  value={contactPhone}
-                  onChange={(event) => setContactPhone(event.target.value)}
-                  className="w-full rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                  placeholder="(81) 99999-9999"
-                  inputMode="tel"
-                />
-              </label>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
+                <span className="text-xs uppercase tracking-[0.18em] text-white/38">
+                  Nome
+                </span>
+                <p className="mt-3 text-base font-semibold text-white">{customerName}</p>
+              </div>
 
               <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
                 <span className="text-xs uppercase tracking-[0.18em] text-white/38">
-                  Conta vinculada
+                  E-mail
                 </span>
-                <p className="mt-3 text-base font-semibold text-white">{customerName}</p>
-                <p className="mt-1 text-sm text-white/55">{customerEmail || "Sem e-mail"}</p>
+                <p className="mt-3 break-all text-base font-semibold text-white">
+                  {customerEmail || "Sem e-mail"}
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
+                <span className="text-xs uppercase tracking-[0.18em] text-white/38">
+                  Telefone cadastrado
+                </span>
+                <p className="mt-3 text-base font-semibold text-white">
+                  {customerPhone || "Nao encontrado no cadastro"}
+                </p>
               </div>
             </div>
+
+            {needsPhoneCompletion ? (
+              <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_0.82fr]">
+                <label className="space-y-2">
+                  <span className="text-sm text-white/60">Telefone para concluir</span>
+                  <input
+                    value={fallbackPhone}
+                    onChange={(event) => setFallbackPhone(event.target.value)}
+                    className="w-full rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                    placeholder="(81) 99999-9999"
+                    inputMode="tel"
+                  />
+                </label>
+
+                <div className="rounded-[1.5rem] border border-[#f59e0b]/20 bg-[#f59e0b]/10 p-4 text-sm leading-7 text-[#fde7b0]">
+                  Seu cadastro antigo nao tem telefone salvo. Informe o numero uma vez
+                  para concluir a reserva.
+                </div>
+              </div>
+            ) : null}
           </section>
         </div>
       </div>

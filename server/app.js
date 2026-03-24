@@ -1,11 +1,17 @@
 import express from "express";
 import cors from "cors";
 import authRouter from "./routes/auth.js";
+import adminRouter from "./routes/admin.js";
 import bookingsRouter from "./routes/bookings.js";
+import { ensureSuperAdminUser } from "./auth/super-admin.js";
 import { getFrontendUrl } from "./config/public-urls.js";
 
 const app = express();
 const frontendUrl = getFrontendUrl();
+
+void ensureSuperAdminUser().catch((error) => {
+  console.error("Failed to ensure super admin user.", error);
+});
 
 app.use(
   cors({
@@ -20,6 +26,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/bookings", bookingsRouter);
 
 app.use((error, _req, res, _next) => {

@@ -6,11 +6,12 @@ import {
   CalendarDays,
   LockKeyhole,
   Mail,
+  Phone,
   Sparkles,
   UserRound,
 } from "lucide-react";
 import { Link, Navigate, useLocation } from "react-router-dom";
-import { useClientAuth } from "@/context/ClientAuthContext";
+import { type AuthRole, useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
 
 type AuthMode = "login" | "register";
@@ -24,9 +25,17 @@ function getAuthErrorMessage(errorCode: string | null) {
   }
 }
 
+function getDefaultRedirectPath(role: AuthRole) {
+  return role === "client" ? contactLinks.clientBooking : "/admin";
+}
+
+function resolvePostAuthRedirect(role: AuthRole, requestedPath: string) {
+  return role === "client" ? requestedPath : "/admin";
+}
+
 export function FullScreenSignup() {
   const location = useLocation();
-  const { isAuthenticated, loginWithEmail, registerWithEmail } = useClientAuth();
+  const { isAuthenticated, loginWithEmail, registerWithEmail, user } = useClientAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [error, setError] = useState("");
   const [loginForm, setLoginForm] = useState({
@@ -36,6 +45,7 @@ export function FullScreenSignup() {
   const [registerForm, setRegisterForm] = useState({
     name: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -54,8 +64,8 @@ export function FullScreenSignup() {
       return location.state.from.pathname;
     }
 
-    return contactLinks.clientBooking;
-  }, [location.state]);
+    return user ? getDefaultRedirectPath(user.role) : contactLinks.clientBooking;
+  }, [location.state, user]);
 
   useEffect(() => {
     const nextError = getAuthErrorMessage(
@@ -65,8 +75,8 @@ export function FullScreenSignup() {
     setError(nextError);
   }, [location.search]);
 
-  if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+  if (isAuthenticated && user) {
+    return <Navigate to={resolvePostAuthRedirect(user.role, redirectTo)} replace />;
   }
 
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -75,8 +85,8 @@ export function FullScreenSignup() {
     setIsSubmitting(true);
 
     try {
-      await loginWithEmail(loginForm);
-      window.location.assign(redirectTo);
+      const authenticatedUser = await loginWithEmail(loginForm);
+      window.location.assign(resolvePostAuthRedirect(authenticatedUser.role, redirectTo));
     } catch (currentError) {
       setError(
         currentError instanceof Error
@@ -100,12 +110,13 @@ export function FullScreenSignup() {
     setIsSubmitting(true);
 
     try {
-      await registerWithEmail({
+      const authenticatedUser = await registerWithEmail({
         name: registerForm.name,
         email: registerForm.email,
+        phone: registerForm.phone,
         password: registerForm.password,
       });
-      window.location.assign(redirectTo);
+      window.location.assign(resolvePostAuthRedirect(authenticatedUser.role, redirectTo));
     } catch (currentError) {
       setError(
         currentError instanceof Error
@@ -154,8 +165,8 @@ export function FullScreenSignup() {
             </h1>
 
             <p className="mt-4 max-w-lg text-sm leading-7 text-white/68">
-              Crie sua conta com nome, e-mail e senha. Seus dados sao enviados para
-              o backend e registrados no banco via Prisma.
+              Crie sua conta com nome, e-mail, telefone e senha. Seus dados sao
+              enviados para o backend e registrados no banco via Prisma.
             </p>
           </div>
         </div>
@@ -186,7 +197,7 @@ export function FullScreenSignup() {
               <p className="mt-3 text-sm leading-7 text-white/62">
                 {mode === "login"
                   ? "Entre com e-mail e senha para seguir ao calendario."
-                  : "Cadastre nome, e-mail e senha para liberar o acesso a area de agendamento."}
+                  : "Cadastre nome, e-mail, telefone e senha para liberar o acesso a area de agendamento."}
               </p>
             </div>
 
@@ -306,6 +317,27 @@ export function FullScreenSignup() {
                       placeholder="voce@email.com"
                       type="email"
                       autoComplete="email"
+                      required
+                    />
+                  </div>
+                </label>
+
+                <label className="space-y-2">
+                  <span className="text-sm text-white/60">Telefone</span>
+                  <div className="flex items-center gap-3 rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3">
+                    <Phone className="h-4 w-4 text-[#00C896]" />
+                    <input
+                      value={registerForm.phone}
+                      onChange={(event) =>
+                        setRegisterForm((current) => ({
+                          ...current,
+                          phone: event.target.value,
+                        }))
+                      }
+                      className="w-full bg-transparent text-white outline-none placeholder:text-white/28"
+                      placeholder="(81) 99999-9999"
+                      type="tel"
+                      autoComplete="tel"
                       required
                     />
                   </div>

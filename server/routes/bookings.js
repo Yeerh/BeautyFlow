@@ -1,6 +1,6 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
-import { readBearerToken, verifyAuthToken } from "../auth/jwt.js";
+import { getAuthenticatedUser, userHasRole } from "../auth/session.js";
 
 const router = Router();
 
@@ -13,28 +13,24 @@ function buildScheduledAt(scheduledDate, scheduledTime) {
   return Number.isNaN(scheduledAt.getTime()) ? null : scheduledAt;
 }
 
-async function resolveAuthenticatedUser(request) {
-  const token = readBearerToken(request);
-
-  if (!token) {
-    return null;
-  }
-
-  const payload = verifyAuthToken(token);
-
-  if (!payload?.id) {
-    return null;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: Number(payload.id) },
-  });
-
-  return user ?? null;
-}
-
-router.get("/", async (_req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
+    const authenticatedUser = await getAuthenticatedUser(req);
+
+    if (!authenticatedUser) {
+      res.status(401).json({
+        message: "Sessao invalida. Entre novamente para continuar.",
+      });
+      return;
+    }
+
+    if (!userHasRole(authenticatedUser, ["ADMIN", "SUPER_ADMIN"])) {
+      res.status(403).json({
+        message: "Acesso restrito ao painel administrativo.",
+      });
+      return;
+    }
+
     const bookings = await prisma.booking.findMany({
       select: {
         id: true,
@@ -53,6 +49,13 @@ router.get("/", async (_req, res, next) => {
 
     res.json({ items: bookings });
   } catch (error) {
+    if (error?.name === "JsonWebTokenError" || error?.name === "TokenExpiredError") {
+      res.status(401).json({
+        message: "Sessao invalida. Entre novamente para continuar.",
+      });
+      return;
+    }
+
     next(error);
   }
 });
@@ -94,7 +97,7 @@ router.post("/", async (req, res, next) => {
     if (
       (typeof name !== "string" && typeof name !== "undefined") ||
       (typeof email !== "string" && typeof email !== "undefined") ||
-      typeof phone !== "string" ||
+      (typeof phone !== "string" && typeof phone !== "undefined") ||
       typeof serviceName !== "string" ||
       typeof servicePrice !== "string" ||
       typeof scheduledDate !== "string" ||
@@ -108,7 +111,7 @@ router.post("/", async (req, res, next) => {
 
     const trimmedName = typeof name === "string" ? name.trim() : "";
     const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
-    const trimmedPhone = phone.trim();
+    const trimmedPhone = typeof phone === "string" ? phone.trim() : "";
     const trimmedServiceName = serviceName.trim();
     const trimmedServicePrice = servicePrice.trim();
     const trimmedScheduledDate = scheduledDate.trim();
@@ -116,7 +119,6 @@ router.post("/", async (req, res, next) => {
     const trimmedNotes = typeof notes === "string" ? notes.trim() : "";
 
     if (
-      trimmedPhone.length < 8 ||
       !trimmedServiceName ||
       !trimmedServicePrice ||
       !trimmedScheduledDate ||
@@ -137,15 +139,24 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
-    const authenticatedUser = await resolveAuthenticatedUser(req);
+    const authenticatedUser = await getAuthenticatedUser(req);
 
     let user = authenticatedUser;
     let bookingName = trimmedName;
     let bookingEmail = normalizedEmail;
+    let bookingPhone = trimmedPhone;
 
     if (user) {
       bookingName = trimmedName || user.name?.trim() || "Cliente BeautyFlow";
       bookingEmail = user.email;
+      bookingPhone = trimmedPhone || user.phone?.trim() || "";
+
+      if (bookingPhone.length < 8) {
+        res.status(400).json({
+          message: "Cadastre um telefone valido para concluir a reserva.",
+        });
+        return;
+      }
 
       if (bookingName && user.name !== bookingName) {
         user = await prisma.user.update({
@@ -155,8 +166,19 @@ router.post("/", async (req, res, next) => {
           },
         });
       }
+
+      if (trimmedPhone && user.phone !== trimmedPhone) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            phone: trimmedPhone,
+          },
+        });
+      }
     } else {
-      if (bookingName.length < 2 || !bookingEmail) {
+      bookingPhone = trimmedPhone;
+
+      if (bookingName.length < 2 || !bookingEmail || bookingPhone.length < 8) {
         res.status(400).json({
           message: "Preencha nome, e-mail, telefone, servico, data e horario.",
         });
@@ -172,8 +194,10 @@ router.post("/", async (req, res, next) => {
           data: {
             name: trimmedName,
             email: normalizedEmail,
+            phone: bookingPhone,
             password: null,
             provider: "EMAIL",
+            role: "CLIENT",
           },
         });
       } else if (user.name !== trimmedName) {
@@ -181,6 +205,14 @@ router.post("/", async (req, res, next) => {
           where: { id: user.id },
           data: {
             name: trimmedName,
+            phone: bookingPhone,
+          },
+        });
+      } else if (user.phone !== bookingPhone) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            phone: bookingPhone,
           },
         });
       }
@@ -191,7 +223,7 @@ router.post("/", async (req, res, next) => {
         userId: user.id,
         clientName: bookingName,
         clientEmail: bookingEmail,
-        phone: trimmedPhone,
+        phone: bookingPhone,
         serviceName: trimmedServiceName,
         servicePrice: trimmedServicePrice,
         scheduledDate: trimmedScheduledDate,
