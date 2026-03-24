@@ -70,7 +70,7 @@ router.use(async (req, res, next) => {
 
     if (!authenticatedUser) {
       res.status(401).json({
-        message: "Sessao invalida. Entre novamente para continuar.",
+        message: "Sessão inválida. Entre novamente para continuar.",
       });
       return;
     }
@@ -87,7 +87,7 @@ router.use(async (req, res, next) => {
   } catch (error) {
     if (error?.name === "JsonWebTokenError" || error?.name === "TokenExpiredError") {
       res.status(401).json({
-        message: "Sessao invalida. Entre novamente para continuar.",
+        message: "Sessão inválida. Entre novamente para continuar.",
       });
       return;
     }
@@ -162,7 +162,7 @@ router.post("/users", async (req, res, next) => {
       typeof password !== "string"
     ) {
       res.status(400).json({
-        message: "Informe nome, usuario, e-mail, telefone, negocio e senha.",
+        message: "Informe nome, usuário, e-mail, telefone, negócio e senha.",
       });
       return;
     }
@@ -200,7 +200,7 @@ router.post("/users", async (req, res, next) => {
 
     if (existingUser) {
       res.status(409).json({
-        message: "Ja existe uma conta com este usuario ou e-mail.",
+        message: "Já existe uma conta com este usuário ou e-mail.",
       });
       return;
     }
@@ -243,7 +243,7 @@ router.post("/users", async (req, res, next) => {
   } catch (error) {
     if (error?.code === "P2002") {
       res.status(409).json({
-        message: "Ja existe uma conta com este usuario ou e-mail.",
+        message: "Já existe uma conta com este usuário ou e-mail.",
       });
       return;
     }
@@ -292,7 +292,7 @@ router.patch("/users", async (req, res, next) => {
 
     if (!currentAdmin) {
       res.status(404).json({
-        message: "Conta administradora nao encontrada.",
+        message: "Conta administradora não encontrada.",
       });
       return;
     }
@@ -366,7 +366,7 @@ router.patch("/users", async (req, res, next) => {
   } catch (error) {
     if (error?.code === "P2002") {
       res.status(409).json({
-        message: "Ja existe uma conta com este usuario ou e-mail.",
+        message: "Já existe uma conta com este usuário ou e-mail.",
       });
       return;
     }
@@ -388,7 +388,7 @@ router.delete("/users", async (req, res, next) => {
 
     if (!adminId) {
       res.status(400).json({
-        message: "Informe qual conta administradora deve ser excluida.",
+        message: "Informe qual conta administradora deve ser excluída.",
       });
       return;
     }
@@ -402,7 +402,7 @@ router.delete("/users", async (req, res, next) => {
 
     if (!currentAdmin) {
       res.status(404).json({
-        message: "Conta administradora nao encontrada.",
+        message: "Conta administradora não encontrada.",
       });
       return;
     }
@@ -448,7 +448,7 @@ router.patch("/profile", async (req, res, next) => {
   try {
     if (!userHasRole(req.currentUser, ["ADMIN"])) {
       res.status(403).json({
-        message: "Somente administradores podem editar o proprio estabelecimento.",
+        message: "Somente administradores podem editar o próprio estabelecimento.",
       });
       return;
     }
@@ -481,7 +481,7 @@ router.patch("/profile", async (req, res, next) => {
       trimmedBusinessAddress.length < 3
     ) {
       res.status(400).json({
-        message: "Preencha nome, telefone, negocio e endereco corretamente.",
+        message: "Preencha nome, telefone, negócio e endereço corretamente.",
       });
       return;
     }
@@ -524,7 +524,7 @@ router.get("/services", async (req, res, next) => {
 
     if (!targetAdminId) {
       res.status(400).json({
-        message: "Administrador invalido para listar servicos.",
+        message: "Administrador inválido para listar serviços.",
       });
       return;
     }
@@ -557,7 +557,7 @@ router.post("/services", async (req, res, next) => {
   try {
     if (!userHasRole(req.currentUser, ["ADMIN"])) {
       res.status(403).json({
-        message: "Somente administradores podem cadastrar servicos.",
+        message: "Somente administradores podem cadastrar serviços.",
       });
       return;
     }
@@ -571,14 +571,14 @@ router.post("/services", async (req, res, next) => {
       parsedPriceCents === null
     ) {
       res.status(400).json({
-        message: "Informe nome, descricao e preco do servico.",
+        message: "Informe nome, descrição e preço do serviço.",
       });
       return;
     }
 
     if (name.trim().length < 2 || parsedPriceCents <= 0) {
       res.status(400).json({
-        message: "Preencha o servico com um nome e preco validos.",
+        message: "Preencha o serviço com um nome e preço válidos.",
       });
       return;
     }
@@ -614,7 +614,7 @@ router.patch("/services", async (req, res, next) => {
   try {
     if (!userHasRole(req.currentUser, ["ADMIN"])) {
       res.status(403).json({
-        message: "Somente administradores podem editar servicos.",
+        message: "Somente administradores podem editar serviços.",
       });
       return;
     }
@@ -624,7 +624,7 @@ router.patch("/services", async (req, res, next) => {
 
     if (!serviceId) {
       res.status(400).json({
-        message: "Informe qual servico deve ser editado.",
+        message: "Informe qual serviço deve ser editado.",
       });
       return;
     }
@@ -638,7 +638,7 @@ router.patch("/services", async (req, res, next) => {
 
     if (!currentService) {
       res.status(404).json({
-        message: "Servico nao encontrado para este administrador.",
+        message: "Serviço não encontrado para este administrador.",
       });
       return;
     }

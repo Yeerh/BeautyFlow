@@ -34,7 +34,7 @@ router.get("/", async (req, res, next) => {
 
     if (!authenticatedUser) {
       res.status(401).json({
-        message: "Sessao invalida. Entre novamente para continuar.",
+        message: "Sessão inválida. Entre novamente para continuar.",
       });
       return;
     }
@@ -84,7 +84,7 @@ router.get("/", async (req, res, next) => {
   } catch (error) {
     if (error?.name === "JsonWebTokenError" || error?.name === "TokenExpiredError") {
       res.status(401).json({
-        message: "Sessao invalida. Entre novamente para continuar.",
+        message: "Sessão inválida. Entre novamente para continuar.",
       });
       return;
     }
@@ -136,7 +136,7 @@ router.post("/", async (req, res, next) => {
       typeof scheduledTime !== "string"
     ) {
       res.status(400).json({
-        message: "Dados do agendamento invalidos.",
+        message: "Dados do agendamento inválidos.",
       });
       return;
     }
@@ -152,7 +152,7 @@ router.post("/", async (req, res, next) => {
 
     if (!parsedAdminId || !parsedServiceId || !trimmedScheduledDate || !trimmedScheduledTime) {
       res.status(400).json({
-        message: "Escolha local, servico, data e horario para continuar.",
+        message: "Escolha local, serviço, data e horário para continuar.",
       });
       return;
     }
@@ -161,7 +161,7 @@ router.post("/", async (req, res, next) => {
 
     if (!scheduledAt) {
       res.status(400).json({
-        message: "Data ou horario do agendamento invalido.",
+        message: "Data ou horário do agendamento inválido.",
       });
       return;
     }
@@ -180,7 +180,7 @@ router.post("/", async (req, res, next) => {
 
     if (!location) {
       res.status(404).json({
-        message: "Local selecionado nao esta disponivel.",
+        message: "Local selecionado não está disponível.",
       });
       return;
     }
@@ -201,7 +201,7 @@ router.post("/", async (req, res, next) => {
 
     if (!service) {
       res.status(404).json({
-        message: "Servico selecionado nao esta disponivel neste local.",
+        message: "Serviço selecionado não está disponível neste local.",
       });
       return;
     }
@@ -220,7 +220,7 @@ router.post("/", async (req, res, next) => {
 
       if (bookingPhone.length < 8) {
         res.status(400).json({
-          message: "Cadastre um telefone valido para concluir a reserva.",
+          message: "Cadastre um telefone válido para concluir a reserva.",
         });
         return;
       }
@@ -246,7 +246,7 @@ router.post("/", async (req, res, next) => {
 
       if (bookingName.length < 2 || !bookingEmail || bookingPhone.length < 8) {
         res.status(400).json({
-          message: "Preencha nome, e-mail, telefone, servico, data e horario.",
+          message: "Preencha nome, e-mail, telefone, serviço, data e horário.",
         });
         return;
       }
@@ -313,7 +313,7 @@ router.post("/", async (req, res, next) => {
   } catch (error) {
     if (error?.name === "JsonWebTokenError" || error?.name === "TokenExpiredError") {
       res.status(401).json({
-        message: "Sessao invalida. Entre novamente para continuar.",
+        message: "Sessão inválida. Entre novamente para continuar.",
       });
       return;
     }

@@ -19,7 +19,12 @@ export function AdminAuthPage() {
   const [error, setError] = useState("");
 
   if (isAuthenticated && user) {
-    return <Navigate to={user.role === "client" ? "/cliente-agendamento" : "/admin"} replace />;
+    return (
+      <Navigate
+        to={user.role === "client" ? "/cliente-agendamento" : "/admin/painel"}
+        replace
+      />
+    );
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -32,16 +37,16 @@ export function AdminAuthPage() {
 
       if (authenticatedUser.role === "client") {
         logout();
-        setError("Esta area e exclusiva para administradores.");
+        setError("Esta área é exclusiva para administradores.");
         return;
       }
 
-      window.location.assign("/admin");
+      window.location.assign("/admin/painel");
     } catch (currentError) {
       setError(
         currentError instanceof Error
           ? currentError.message
-          : "Nao foi possivel acessar o painel administrativo.",
+          : "Não foi possível acessar o painel administrativo.",
       );
     } finally {
       setIsSubmitting(false);
@@ -76,15 +81,15 @@ export function AdminAuthPage() {
             </h1>
 
             <p className="mt-4 max-w-md text-sm leading-7 text-white/65">
-              Entre com usuario ou e-mail para acessar a area de operacao, contas
+              Entre com usuário ou e-mail para acessar a área de operação, contas
               administradoras e dashboards de faturamento.
             </p>
 
             <div className="mt-8 space-y-4">
               {[
-                "Login por usuario ou e-mail",
-                "Painel separado por nivel de acesso",
-                "Visao de faturamento e operacao",
+                "Login por usuário ou e-mail",
+                "Painel separado por nível de acesso",
+                "Visão de faturamento e operação",
               ].map((item) => (
                 <div
                   key={item}
@@ -105,13 +110,13 @@ export function AdminAuthPage() {
                 Entrar no painel
               </h2>
               <p className="mt-3 text-sm leading-7 text-white/62">
-                Use o usuario do super admin ou de uma conta administradora criada no sistema.
+                Use o usuário do super admin ou de uma conta administradora criada no sistema.
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <label className="space-y-2">
-                <span className="text-sm text-white/60">Usuario ou e-mail</span>
+                <span className="text-sm text-white/60">Usuário ou e-mail</span>
                 <div className="flex items-center gap-3 rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3">
                   <UserRound className="h-4 w-4 text-[#00C896]" />
                   <input

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
-  AlertCircle,
   BadgeCheck,
   CircleDollarSign,
   LayoutPanelTop,
@@ -14,6 +13,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
+import { NavLink, Navigate, useLocation } from "react-router-dom";
 import { PortalShell } from "@/components/PortalShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { buildApiUrl } from "@/lib/api";
@@ -58,15 +58,12 @@ type ServiceItem = {
   createdAt: string;
 };
 
-type MenuSection = {
-  id: string;
+type AdminNavItem = {
+  to: string;
   label: string;
-  detail: string;
-  icon: typeof LayoutPanelTop;
 };
 
 type ViaCepResponse = {
-  cep?: string;
   logradouro?: string;
   bairro?: string;
   localidade?: string;
@@ -75,9 +72,21 @@ type ViaCepResponse = {
 };
 
 const DASHBOARD_ERROR_MESSAGE =
-  "Nao foi possivel carregar os dados do painel agora. Tente novamente em alguns instantes.";
+  "Não foi possível carregar os dados do painel agora. Tente novamente em alguns instantes.";
 
 const metricIcons = [CircleDollarSign, BadgeCheck, LayoutPanelTop, UserRound] as const;
+
+const ADMIN_NAV_ITEMS: AdminNavItem[] = [
+  { to: "/admin/painel", label: "Painel" },
+  { to: "/admin/perfil", label: "Perfil" },
+  { to: "/admin/servicos", label: "Serviços" },
+];
+
+const SUPER_ADMIN_NAV_ITEMS: AdminNavItem[] = [
+  { to: "/admin/painel", label: "Painel" },
+  { to: "/admin/administradores", label: "Administradores" },
+  { to: "/admin/agendamentos", label: "Agendamentos" },
+];
 
 function getReadableDashboardError(error: unknown, fallbackMessage: string) {
   if (
@@ -171,7 +180,136 @@ function buildAccountForm(account?: Partial<AdminAccount> | null) {
   };
 }
 
+function MetricsGrid({
+  metrics,
+}: {
+  metrics: Array<{ label: string; value: string; detail: string }>;
+}) {
+  return (
+    <div className="grid gap-5 lg:grid-cols-4">
+      {metrics.map((metric, index) => {
+        const Icon = metricIcons[index];
+
+        return (
+          <article
+            key={metric.label}
+            className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
+          >
+            <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
+              <Icon className="h-5 w-5" />
+            </div>
+            <p className="mt-5 text-sm text-white/60">{metric.label}</p>
+            <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
+              {metric.value}
+            </p>
+            <p className="mt-3 text-sm leading-6 text-white/55">{metric.detail}</p>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function BookingsList({
+  bookings,
+  isLoading,
+  emptyMessage,
+  loadingMessage,
+  showLocation,
+}: {
+  bookings: DashboardBooking[];
+  isLoading: boolean;
+  emptyMessage: string;
+  loadingMessage: string;
+  showLocation?: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="mt-6 flex items-center gap-3 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-4 text-sm text-white/65">
+        <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
+        {loadingMessage}
+      </div>
+    );
+  }
+
+  if (!bookings.length) {
+    return (
+      <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 space-y-4">
+      {bookings.map((booking) => (
+        <article
+          key={booking.id}
+          className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-lg font-semibold text-white">{booking.clientName}</p>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
+                  #{booking.id}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-white/58">
+                {showLocation && booking.locationName ? `${booking.locationName} · ` : ""}
+                {booking.serviceName}
+              </p>
+            </div>
+
+            <span
+              className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusClassName(
+                booking.status,
+              )}`}
+            >
+              {getStatusLabel(booking.status)}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+              <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                Data
+              </span>
+              <span className="mt-2 block font-semibold text-white">
+                {formatScheduledDate(booking.scheduledDate)}
+              </span>
+            </div>
+            <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+              <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                Horário
+              </span>
+              <span className="mt-2 block font-semibold text-white">
+                {booking.scheduledTime}
+              </span>
+            </div>
+            <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+              <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                Telefone
+              </span>
+              <span className="mt-2 block font-semibold text-white">{booking.phone}</span>
+            </div>
+            <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
+              <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                Valor
+              </span>
+              <span className="mt-2 block font-semibold text-white">
+                {booking.servicePrice}
+              </span>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export function AdminDashboardPage() {
+  const location = useLocation();
   const { logout, token, user } = useClientAuth();
   const isSuperAdmin = user?.role === "super_admin";
   const todayIsoDate = useMemo(() => getTodayIsoDate(), []);
@@ -217,121 +355,71 @@ export function AdminDashboardPage() {
   const [isLookingUpZipCode, setIsLookingUpZipCode] = useState(false);
   const [profileUploadError, setProfileUploadError] = useState("");
 
-  async function loadBookings(authToken: string) {
-    setIsLoadingBookings(true);
-    setBookingsError("");
-
-    try {
-      const response = await fetch(buildApiUrl("/api/bookings"), {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        items?: DashboardBooking[];
-        message?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.message || "Nao foi possivel carregar os agendamentos.");
-      }
-
-      setBookings(Array.isArray(data.items) ? data.items : []);
-    } catch (error) {
-      setBookingsError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
-    } finally {
-      setIsLoadingBookings(false);
-    }
-  }
-
-  async function loadProfile(authToken: string) {
-    setIsLoadingProfile(true);
-    setProfileError("");
-
-    try {
-      const response = await fetch(buildApiUrl("/api/admin/profile"), {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        profile?: AdminAccount | null;
-        message?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.message || "Nao foi possivel carregar o perfil.");
-      }
-
-      setProfile(data.profile ?? null);
-    } catch (error) {
-      setProfileError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
-    } finally {
-      setIsLoadingProfile(false);
-    }
-  }
-
-  async function loadAdminUsers(authToken: string) {
-    setIsLoadingAdminUsers(true);
-    setAdminUsersError("");
-
-    try {
-      const response = await fetch(buildApiUrl("/api/admin/users"), {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        items?: AdminAccount[];
-        message?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.message || "Nao foi possivel carregar as contas.");
-      }
-
-      setAdminUsers(Array.isArray(data.items) ? data.items : []);
-    } catch (error) {
-      setAdminUsersError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
-    } finally {
-      setIsLoadingAdminUsers(false);
-    }
-  }
-
-  async function loadServices(authToken: string) {
-    setIsLoadingServices(true);
-    setServicesError("");
-
-    try {
-      const response = await fetch(buildApiUrl("/api/admin/services"), {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        items?: ServiceItem[];
-        message?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.message || "Nao foi possivel carregar os servicos.");
-      }
-
-      setServices(Array.isArray(data.items) ? data.items : []);
-    } catch (error) {
-      setServicesError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
-    } finally {
-      setIsLoadingServices(false);
-    }
-  }
+  const navItems = isSuperAdmin ? SUPER_ADMIN_NAV_ITEMS : ADMIN_NAV_ITEMS;
+  const currentPath = location.pathname.replace(/\/$/, "") || "/admin";
+  const defaultPath = navItems[0]?.to || "/admin/painel";
 
   useEffect(() => {
     if (!token) {
       return;
     }
 
-    loadBookings(token);
-    loadProfile(token);
+    async function loadBookings(authToken: string) {
+      setIsLoadingBookings(true);
+      setBookingsError("");
+
+      try {
+        const response = await fetch(buildApiUrl("/api/bookings"), {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          items?: DashboardBooking[];
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.message || "Não foi possível carregar os agendamentos.");
+        }
+
+        setBookings(Array.isArray(data.items) ? data.items : []);
+      } catch (error) {
+        setBookingsError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    }
+
+    async function loadProfile(authToken: string) {
+      setIsLoadingProfile(true);
+      setProfileError("");
+
+      try {
+        const response = await fetch(buildApiUrl("/api/admin/profile"), {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          profile?: AdminAccount | null;
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.message || "Não foi possível carregar o perfil.");
+        }
+
+        setProfile(data.profile ?? null);
+      } catch (error) {
+        setProfileError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    }
+
+    void loadBookings(token);
+    void loadProfile(token);
   }, [token]);
 
   useEffect(() => {
@@ -339,14 +427,68 @@ export function AdminDashboardPage() {
       return;
     }
 
+    async function loadAdminUsers(authToken: string) {
+      setIsLoadingAdminUsers(true);
+      setAdminUsersError("");
+
+      try {
+        const response = await fetch(buildApiUrl("/api/admin/users"), {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          items?: AdminAccount[];
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.message || "Não foi possível carregar as contas.");
+        }
+
+        setAdminUsers(Array.isArray(data.items) ? data.items : []);
+      } catch (error) {
+        setAdminUsersError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
+      } finally {
+        setIsLoadingAdminUsers(false);
+      }
+    }
+
+    async function loadServices(authToken: string) {
+      setIsLoadingServices(true);
+      setServicesError("");
+
+      try {
+        const response = await fetch(buildApiUrl("/api/admin/services"), {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          items?: ServiceItem[];
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.message || "Não foi possível carregar os serviços.");
+        }
+
+        setServices(Array.isArray(data.items) ? data.items : []);
+      } catch (error) {
+        setServicesError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
+      } finally {
+        setIsLoadingServices(false);
+      }
+    }
+
     if (isSuperAdmin) {
-      loadAdminUsers(token);
+      void loadAdminUsers(token);
       setServices([]);
       return;
     }
 
     setAdminUsers([]);
-    loadServices(token);
+    void loadServices(token);
   }, [isSuperAdmin, token]);
 
   useEffect(() => {
@@ -397,7 +539,7 @@ export function AdminDashboardPage() {
         {
           label: "Faturamento geral",
           value: formatRevenue(totalRevenueCents),
-          detail: "somatorio de todos os agendamentos ativos",
+          detail: "somatório de todos os agendamentos ativos",
         },
         {
           label: "Administradores",
@@ -415,7 +557,7 @@ export function AdminDashboardPage() {
             new Set(activeBookings.map((item) => item.adminId)).size ||
               adminUsers.filter((item) => item.isActive).length,
           ),
-          detail: "barbearias e estudios em operacao",
+          detail: "barbearias e estúdios em operação",
         },
       ];
     }
@@ -426,24 +568,24 @@ export function AdminDashboardPage() {
 
     return [
       {
-        label: "Faturamento diario",
+        label: "Faturamento diário",
         value: formatRevenue(todayRevenueCents),
         detail: `baseado em ${todayBookings.length} agendamento(s) de hoje`,
       },
       {
         label: "Clientes agendados",
         value: String(uniqueClientsToday),
-        detail: "clientes unicos no dia",
+        detail: "clientes únicos no dia",
       },
       {
-        label: "Historico",
+        label: "Histórico",
         value: String(activeBookings.length),
         detail: "atendimentos registrados no sistema",
       },
       {
-        label: "Servicos ativos",
+        label: "Serviços ativos",
         value: String(services.filter((service) => service.isActive).length),
-        detail: `${services.length} servicos cadastrados`,
+        detail: `${services.length} serviços cadastrados`,
       },
     ];
   }, [activeBookings, adminUsers, isSuperAdmin, services, todayBookings, todayRevenueCents, totalRevenueCents]);
@@ -455,7 +597,7 @@ export function AdminDashboardPage() {
     >();
 
     activeBookings.forEach((booking) => {
-      const key = booking.locationName || "Local nao informado";
+      const key = booking.locationName || "Local não informado";
       const current = grouped.get(key) ?? {
         locationName: key,
         bookings: 0,
@@ -472,75 +614,9 @@ export function AdminDashboardPage() {
     );
   }, [activeBookings]);
 
-  const menuSections = useMemo<MenuSection[]>(
-    () =>
-      isSuperAdmin
-        ? [
-            {
-              id: "dashboard-overview",
-              label: "Painel global",
-              detail: "faturamento e metricas",
-              icon: LayoutPanelTop,
-            },
-            {
-              id: "admin-accounts",
-              label: "Administradores",
-              detail: "contas e acessos",
-              icon: ShieldCheck,
-            },
-            {
-              id: "system-bookings",
-              label: "Agendamentos",
-              detail: "reservas do sistema",
-              icon: BadgeCheck,
-            },
-          ]
-        : [
-            {
-              id: "dashboard-overview",
-              label: "Painel do estabelecimento",
-              detail: "faturamento e clientes do dia",
-              icon: CircleDollarSign,
-            },
-            {
-              id: "business-profile",
-              label: "Perfil",
-              detail: "foto, cep e endereco",
-              icon: Store,
-            },
-            {
-              id: "business-services",
-              label: "Servicos cadastrados",
-              detail: "catalogo e disponibilidade",
-              icon: BadgeCheck,
-            },
-          ],
-    [isSuperAdmin],
-  );
-  const [activeSection, setActiveSection] = useState<string>("dashboard-overview");
-
-  useEffect(() => {
-    setActiveSection(menuSections[0]?.id ?? "dashboard-overview");
-  }, [menuSections]);
-
   const handleLogout = () => {
     logout();
     window.location.assign("/admin-acesso");
-  };
-
-  const scrollToSection = (sectionId: string) => {
-    setActiveSection(sectionId);
-
-    if (typeof document === "undefined") {
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      document.getElementById(sectionId)?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
   };
 
   const handleBusinessPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -557,7 +633,7 @@ export function AdminDashboardPage() {
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setProfileUploadError("Use uma imagem de ate 2MB para a foto do local.");
+      setProfileUploadError("Use uma imagem de até 2MB para a foto do local.");
       event.target.value = "";
       return;
     }
@@ -568,7 +644,7 @@ export function AdminDashboardPage() {
       const result = typeof reader.result === "string" ? reader.result : "";
 
       if (!result) {
-        setProfileUploadError("Nao foi possivel carregar a imagem selecionada.");
+        setProfileUploadError("Não foi possível carregar a imagem selecionada.");
         return;
       }
 
@@ -580,7 +656,7 @@ export function AdminDashboardPage() {
     };
 
     reader.onerror = () => {
-      setProfileUploadError("Nao foi possivel carregar a imagem selecionada.");
+      setProfileUploadError("Não foi possível carregar a imagem selecionada.");
     };
 
     reader.readAsDataURL(file);
@@ -591,7 +667,7 @@ export function AdminDashboardPage() {
     const normalizedZipCode = profileZipCode.replace(/\D/g, "");
 
     if (normalizedZipCode.length !== 8) {
-      setZipLookupError("Informe um CEP valido com 8 digitos.");
+      setZipLookupError("Informe um CEP válido com 8 dígitos.");
       setZipLookupSuccess("");
       return;
     }
@@ -605,7 +681,7 @@ export function AdminDashboardPage() {
       const data = (await response.json().catch(() => ({}))) as ViaCepResponse;
 
       if (!response.ok || data.erro) {
-        throw new Error("CEP nao encontrado.");
+        throw new Error("CEP não encontrado.");
       }
 
       const addressParts = [
@@ -620,11 +696,11 @@ export function AdminDashboardPage() {
       }));
       setZipLookupSuccess(
         [data.localidade?.trim(), data.uf?.trim()].filter(Boolean).join(" / ") ||
-          "Endereco encontrado.",
+          "Endereço encontrado.",
       );
     } catch (error) {
       setZipLookupError(
-        getReadableDashboardError(error, "Nao foi possivel consultar o CEP agora."),
+        getReadableDashboardError(error, "Não foi possível consultar o CEP agora."),
       );
     } finally {
       setIsLookingUpZipCode(false);
@@ -647,6 +723,68 @@ export function AdminDashboardPage() {
     });
     setServiceActionError("");
     setServiceActionSuccess("");
+  };
+
+  const refreshAdminUsers = async () => {
+    if (!token) {
+      return;
+    }
+
+    setIsLoadingAdminUsers(true);
+    setAdminUsersError("");
+
+    try {
+      const response = await fetch(buildApiUrl("/api/admin/users"), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        items?: AdminAccount[];
+        message?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.message || "Não foi possível carregar as contas.");
+      }
+
+      setAdminUsers(Array.isArray(data.items) ? data.items : []);
+    } catch (error) {
+      setAdminUsersError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
+    } finally {
+      setIsLoadingAdminUsers(false);
+    }
+  };
+
+  const refreshServices = async () => {
+    if (!token) {
+      return;
+    }
+
+    setIsLoadingServices(true);
+    setServicesError("");
+
+    try {
+      const response = await fetch(buildApiUrl("/api/admin/services"), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        items?: ServiceItem[];
+        message?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.message || "Não foi possível carregar os serviços.");
+      }
+
+      setServices(Array.isArray(data.items) ? data.items : []);
+    } catch (error) {
+      setServicesError(getReadableDashboardError(error, DASHBOARD_ERROR_MESSAGE));
+    } finally {
+      setIsLoadingServices(false);
+    }
   };
 
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -675,7 +813,7 @@ export function AdminDashboardPage() {
       };
 
       if (!response.ok || !data.profile) {
-        throw new Error(data.message || "Nao foi possivel salvar o estabelecimento.");
+        throw new Error(data.message || "Não foi possível salvar o estabelecimento.");
       }
 
       setProfile(data.profile);
@@ -684,7 +822,7 @@ export function AdminDashboardPage() {
       setProfileError(
         getReadableDashboardError(
           error,
-          "Nao foi possivel atualizar o estabelecimento agora.",
+          "Não foi possível atualizar o estabelecimento agora.",
         ),
       );
     } finally {
@@ -722,10 +860,10 @@ export function AdminDashboardPage() {
       };
 
       if (!response.ok || !data.user) {
-        throw new Error(data.message || "Nao foi possivel salvar a conta administradora.");
+        throw new Error(data.message || "Não foi possível salvar a conta administradora.");
       }
 
-      await loadAdminUsers(token);
+      await refreshAdminUsers();
       resetAdminForm();
       setAdminActionSuccess(
         isEditing
@@ -736,7 +874,7 @@ export function AdminDashboardPage() {
       setAdminActionError(
         getReadableDashboardError(
           error,
-          "Nao foi possivel salvar a conta administradora agora.",
+          "Não foi possível salvar a conta administradora agora.",
         ),
       );
     } finally {
@@ -766,20 +904,21 @@ export function AdminDashboardPage() {
 
       if (!response.ok) {
         const data = (await response.json().catch(() => ({}))) as { message?: string };
-        throw new Error(data.message || "Nao foi possivel excluir a conta.");
+        throw new Error(data.message || "Não foi possível excluir a conta.");
       }
 
-      await loadAdminUsers(token);
+      await refreshAdminUsers();
+
       if (editingAdminId === account.id) {
         resetAdminForm();
       }
 
-      setAdminActionSuccess("Conta administradora excluida.");
+      setAdminActionSuccess("Conta administradora excluída.");
     } catch (error) {
       setAdminActionError(
         getReadableDashboardError(
           error,
-          "Nao foi possivel excluir a conta administradora agora.",
+          "Não foi possível excluir a conta administradora agora.",
         ),
       );
     }
@@ -796,7 +935,7 @@ export function AdminDashboardPage() {
     const priceCents = parsePriceInput(serviceForm.price);
 
     if (!priceCents) {
-      setServiceActionError("Informe um preco valido para o servico.");
+      setServiceActionError("Informe um preço válido para o serviço.");
       return;
     }
 
@@ -832,17 +971,17 @@ export function AdminDashboardPage() {
       };
 
       if (!response.ok || !data.service) {
-        throw new Error(data.message || "Nao foi possivel salvar o servico.");
+        throw new Error(data.message || "Não foi possível salvar o serviço.");
       }
 
-      await loadServices(token);
+      await refreshServices();
       resetServiceForm();
       setServiceActionSuccess(
-        isEditing ? "Servico atualizado com sucesso." : "Servico criado com sucesso.",
+        isEditing ? "Serviço atualizado com sucesso." : "Serviço criado com sucesso.",
       );
     } catch (error) {
       setServiceActionError(
-        getReadableDashboardError(error, "Nao foi possivel salvar o servico agora."),
+        getReadableDashboardError(error, "Não foi possível salvar o serviço agora."),
       );
     } finally {
       setIsSubmittingService(false);
@@ -875,31 +1014,798 @@ export function AdminDashboardPage() {
       };
 
       if (!response.ok || !data.service) {
-        throw new Error(data.message || "Nao foi possivel atualizar o status do servico.");
+        throw new Error(data.message || "Não foi possível atualizar o status do serviço.");
       }
 
-      await loadServices(token);
+      await refreshServices();
       setServiceActionSuccess(
-        data.service.isActive ? "Servico ativado com sucesso." : "Servico desativado com sucesso.",
+        data.service.isActive
+          ? "Serviço ativado com sucesso."
+          : "Serviço desativado com sucesso.",
       );
     } catch (error) {
       setServiceActionError(
         getReadableDashboardError(
           error,
-          "Nao foi possivel atualizar o status do servico agora.",
+          "Não foi possível atualizar o status do serviço agora.",
         ),
       );
     }
   };
 
+  const navigation = (
+    <div className="overflow-x-auto">
+      <div className="flex min-w-max gap-3">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              `rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-300 ${
+                isActive
+                  ? "border-[#00C896]/35 bg-[#00C896]/12 text-[#00C896]"
+                  : "border-white/10 bg-white/5 text-white/72 hover:-translate-y-0.5 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
+              }`
+            }
+          >
+            {item.label}
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (currentPath === "/admin") {
+    return <Navigate to={defaultPath} replace />;
+  }
+
+  if (!navItems.some((item) => item.to === currentPath)) {
+    return <Navigate to={defaultPath} replace />;
+  }
+
+  const renderSuperAdminOverview = (
+    <>
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
+            <LayoutPanelTop className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Painel global</h2>
+            <p className="text-sm text-white/58">
+              Visão geral dos estabelecimentos e do faturamento do sistema.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-4 xl:grid-cols-2">
+          {locationBreakdown.length ? (
+            locationBreakdown.map((item) => (
+              <article
+                key={item.locationName}
+                className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-lg font-semibold text-white">{item.locationName}</p>
+                    <p className="mt-1 text-sm text-white/55">
+                      {item.bookings} agendamento(s)
+                    </p>
+                  </div>
+                  <span className="text-lg font-semibold text-[#00C896]">
+                    {formatRevenue(item.revenueCents)}
+                  </span>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
+              O dashboard global aparece assim que houver reservas registradas.
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  );
+
+  const renderAdminOverview = (
+    <>
+      <section className="rounded-[2rem] border border-[#F8C8DC]/15 bg-[linear-gradient(180deg,rgba(248,200,220,0.12),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
+            <CircleDollarSign className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Painel do estabelecimento</h2>
+            <p className="text-sm text-white/58">
+              Faturamento diário, clientes agendados e histórico do local.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-4">
+          {todayBookings.length ? (
+            todayBookings.map((booking) => (
+              <article
+                key={booking.id}
+                className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold text-white">{booking.clientName}</p>
+                    <p className="mt-1 text-sm text-white/55">
+                      {booking.scheduledTime} · {booking.serviceName}
+                    </p>
+                  </div>
+                  <span className="text-base font-semibold text-[#F8C8DC]">
+                    {booking.servicePrice}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-white/58">Telefone: {booking.phone}</p>
+              </article>
+            ))
+          ) : (
+            <div className="rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
+              Nenhum cliente agendado para hoje.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <h2 className="text-2xl font-semibold text-white">Histórico de atendimentos</h2>
+        <p className="mt-2 text-sm text-white/58">
+          Todas as reservas registradas para este estabelecimento.
+        </p>
+        <BookingsList
+          bookings={bookings}
+          isLoading={isLoadingBookings}
+          emptyMessage="Nenhum atendimento registrado até agora."
+          loadingMessage="Carregando histórico..."
+        />
+      </section>
+    </>
+  );
+
+  const renderProfilePage = (
+    <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+      <div className="flex items-center gap-3">
+        <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
+          <Store className="h-5 w-5" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-semibold text-white">Perfil</h2>
+          <p className="text-sm text-white/58">
+            Atualize nome do estabelecimento, foto do local e endereço com CEP.
+          </p>
+        </div>
+      </div>
+
+      {(profileError || profileSuccess || zipLookupError || zipLookupSuccess || profileUploadError) ? (
+        <div className="mt-6 space-y-3">
+          {profileError ? (
+            <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+              {profileError}
+            </div>
+          ) : null}
+          {profileSuccess ? (
+            <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
+              {profileSuccess}
+            </div>
+          ) : null}
+          {zipLookupError ? (
+            <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+              {zipLookupError}
+            </div>
+          ) : null}
+          {zipLookupSuccess ? (
+            <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
+              CEP localizado: {zipLookupSuccess}
+            </div>
+          ) : null}
+          {profileUploadError ? (
+            <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+              {profileUploadError}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isLoadingProfile ? (
+        <div className="mt-6 flex items-center gap-3 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-4 text-sm text-white/65">
+          <LoaderCircle className="h-4 w-4 animate-spin text-[#00C896]" />
+          Carregando perfil do estabelecimento...
+        </div>
+      ) : (
+        <form onSubmit={handleProfileSubmit} className="mt-6 space-y-4">
+          <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
+            <span className="text-sm text-white/60">Foto do local</span>
+            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="h-28 w-28 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.04]">
+                {profileForm.businessPhotoUrl ? (
+                  <img
+                    src={profileForm.businessPhotoUrl}
+                    alt={profileForm.businessName || "Foto do local"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm text-white/45">
+                    Sem foto
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 space-y-3">
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/78 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]">
+                  Upload da foto
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleBusinessPhotoUpload}
+                  />
+                </label>
+
+                {profileForm.businessPhotoUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProfileForm((current) => ({
+                        ...current,
+                        businessPhotoUrl: "",
+                      }))
+                    }
+                    className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/20 px-5 py-3 text-sm font-semibold text-white/72 transition-all duration-300 hover:border-[#ef4444]/35 hover:text-[#fecaca]"
+                  >
+                    Remover foto
+                  </button>
+                ) : null}
+
+                <p className="text-xs leading-6 text-white/42">
+                  Imagem em JPG, PNG ou WebP com até 2MB.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[0.68fr_0.32fr]">
+            <label className="space-y-2">
+              <span className="text-sm text-white/60">Buscar CEP</span>
+              <input
+                value={profileZipCode}
+                onChange={(event) => setProfileZipCode(event.target.value)}
+                className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                placeholder="00000-000"
+                inputMode="numeric"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void handleZipLookup()}
+              disabled={isLookingUpZipCode}
+              className="mt-7 inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/78 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
+            >
+              {isLookingUpZipCode ? "Buscando CEP..." : "Buscar CEP"}
+            </button>
+          </div>
+
+          {[
+            { key: "businessName", label: "Nome do estabelecimento", type: "text" },
+            { key: "name", label: "Nome do proprietário", type: "text" },
+            { key: "phone", label: "Telefone", type: "tel" },
+            { key: "businessAddress", label: "Endereço / local", type: "text" },
+          ].map((field) => (
+            <label key={field.key} className="space-y-2">
+              <span className="text-sm text-white/60">{field.label}</span>
+              <input
+                value={profileForm[field.key as keyof typeof profileForm]}
+                onChange={(event) =>
+                  setProfileForm((current) => ({
+                    ...current,
+                    [field.key]: event.target.value,
+                  }))
+                }
+                className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                type={field.type}
+                required
+              />
+            </label>
+          ))}
+
+          <button
+            type="submit"
+            disabled={isSubmittingProfile}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
+          >
+            {isSubmittingProfile ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Store className="h-4 w-4" />
+            )}
+            Salvar perfil
+          </button>
+        </form>
+      )}
+    </section>
+  );
+
+  const renderServicesPage = (
+    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
+            <BadgeCheck className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Serviços</h2>
+            <p className="text-sm text-white/58">
+              Cadastre serviços, edite valores e ative ou desative itens.
+            </p>
+          </div>
+        </div>
+
+        {(servicesError || serviceActionError || serviceActionSuccess) ? (
+          <div className="mt-6 space-y-3">
+            {servicesError ? (
+              <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+                {servicesError}
+              </div>
+            ) : null}
+            {serviceActionError ? (
+              <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+                {serviceActionError}
+              </div>
+            ) : null}
+            {serviceActionSuccess ? (
+              <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
+                {serviceActionSuccess}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <form
+          onSubmit={handleServiceSubmit}
+          className="mt-6 rounded-[1.75rem] border border-white/8 bg-black/20 p-5"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-semibold text-white">
+                {editingServiceId ? "Editar serviço" : "Novo serviço"}
+              </h3>
+              <p className="mt-2 text-sm text-white/58">
+                Defina nome, descrição e preço do atendimento.
+              </p>
+            </div>
+            {editingServiceId ? (
+              <button
+                type="button"
+                onClick={resetServiceForm}
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/65 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
+              >
+                Cancelar
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <label className="space-y-2">
+              <span className="text-sm text-white/60">Nome do serviço</span>
+              <input
+                value={serviceForm.name}
+                onChange={(event) =>
+                  setServiceForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                required
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm text-white/60">Descrição</span>
+              <textarea
+                value={serviceForm.description}
+                onChange={(event) =>
+                  setServiceForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                className="min-h-28 w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm text-white/60">Preço</span>
+              <input
+                value={serviceForm.price}
+                onChange={(event) =>
+                  setServiceForm((current) => ({
+                    ...current,
+                    price: event.target.value,
+                  }))
+                }
+                className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                placeholder="60,00"
+                inputMode="decimal"
+                required
+              />
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmittingService}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
+          >
+            {isSubmittingService ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <BadgeCheck className="h-4 w-4" />
+            )}
+            {editingServiceId ? "Salvar serviço" : "Criar serviço"}
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Serviços cadastrados</h2>
+            <p className="mt-2 text-sm text-white/58">
+              Controle de disponibilidade e valores do estabelecimento.
+            </p>
+          </div>
+          {isLoadingServices ? (
+            <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
+          ) : null}
+        </div>
+
+        {!isLoadingServices && !services.length ? (
+          <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
+            Nenhum serviço cadastrado ainda.
+          </div>
+        ) : null}
+
+        <div className="mt-6 space-y-4">
+          {services.map((service) => (
+            <article
+              key={service.id}
+              className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-lg font-semibold text-white">{service.name}</p>
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+                        service.isActive
+                          ? "border-[#00C896]/20 bg-[#00C896]/10 text-[#00C896]"
+                          : "border-[#ef4444]/20 bg-[#ef4444]/10 text-[#fecaca]"
+                      }`}
+                    >
+                      {service.isActive ? "Ativo" : "Inativo"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-white/58">
+                    {service.description || "Sem descrição cadastrada."}
+                  </p>
+                </div>
+                <span className="text-lg font-semibold text-[#F8C8DC]">
+                  {service.priceLabel}
+                </span>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingServiceId(service.id);
+                    setServiceForm({
+                      name: service.name,
+                      description: service.description,
+                      price: formatPriceInput(service.priceCents),
+                    });
+                    setServiceActionError("");
+                    setServiceActionSuccess("");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
+                >
+                  <PencilLine className="h-4 w-4" />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleToggleService(service)}
+                  className="inline-flex items-center gap-2 rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-2 text-sm text-[#d7fff4] transition-colors duration-300 hover:bg-[#00C896]/15"
+                >
+                  <Power className="h-4 w-4" />
+                  {service.isActive ? "Desativar" : "Ativar"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+
+  const renderAdminAccountsPage = (
+    <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+      <div className="flex items-center gap-3">
+        <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-semibold text-white">Administradores</h2>
+          <p className="text-sm text-white/58">
+            Crie, edite e remova as contas dos barbeiros e donos de estúdio.
+          </p>
+        </div>
+      </div>
+
+      {(adminUsersError || adminActionError || adminActionSuccess) ? (
+        <div className="mt-6 space-y-3">
+          {adminUsersError ? (
+            <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+              {adminUsersError}
+            </div>
+          ) : null}
+          {adminActionError ? (
+            <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+              {adminActionError}
+            </div>
+          ) : null}
+          {adminActionSuccess ? (
+            <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
+              {adminActionSuccess}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mt-8 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <form
+          onSubmit={handleAdminSubmit}
+          className="rounded-[1.75rem] border border-white/8 bg-black/20 p-5"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-semibold text-white">
+                {editingAdminId ? "Editar administrador" : "Novo administrador"}
+              </h3>
+              <p className="mt-2 text-sm text-white/58">
+                Configure o acesso do estabelecimento e seus dados principais.
+              </p>
+            </div>
+            {editingAdminId ? (
+              <button
+                type="button"
+                onClick={resetAdminForm}
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/65 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
+              >
+                Cancelar
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-6 space-y-4">
+            {[
+              { key: "name", label: "Proprietário", type: "text", required: true },
+              { key: "username", label: "Usuário", type: "text", required: true },
+              { key: "email", label: "E-mail", type: "email", required: true },
+              { key: "phone", label: "Telefone", type: "tel", required: true },
+              { key: "businessName", label: "Estabelecimento", type: "text", required: true },
+              { key: "businessPhotoUrl", label: "Foto do local", type: "url", required: false },
+              { key: "businessAddress", label: "Endereço", type: "text", required: false },
+              {
+                key: "password",
+                label: editingAdminId ? "Nova senha" : "Senha",
+                type: "password",
+                required: !editingAdminId,
+              },
+            ].map((field) => (
+              <label key={field.key} className="space-y-2">
+                <span className="text-sm text-white/60">{field.label}</span>
+                <input
+                  value={adminForm[field.key as keyof typeof adminForm].toString()}
+                  onChange={(event) =>
+                    setAdminForm((current) => ({
+                      ...current,
+                      [field.key]: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                  type={field.type}
+                  required={field.required}
+                />
+              </label>
+            ))}
+
+            <label className="space-y-2">
+              <span className="text-sm text-white/60">Status da conta</span>
+              <select
+                value={adminForm.isActive ? "active" : "inactive"}
+                onChange={(event) =>
+                  setAdminForm((current) => ({
+                    ...current,
+                    isActive: event.target.value === "active",
+                  }))
+                }
+                className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 focus:border-[#00C896]/35"
+              >
+                <option value="active" className="bg-[#101010] text-white">
+                  Ativa
+                </option>
+                <option value="inactive" className="bg-[#101010] text-white">
+                  Inativa
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmittingAdmin}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
+          >
+            {isSubmittingAdmin ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <ShieldCheck className="h-4 w-4" />
+            )}
+            {editingAdminId ? "Salvar alterações" : "Criar conta administradora"}
+          </button>
+        </form>
+
+        <div className="rounded-[1.75rem] border border-white/8 bg-black/20 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xl font-semibold text-white">Administradores criados</h3>
+            {isLoadingAdminUsers ? (
+              <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
+            ) : null}
+          </div>
+
+          {!isLoadingAdminUsers && !adminUsers.length ? (
+            <div className="mt-6 rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-5 text-sm text-white/58">
+              Nenhuma conta administradora criada ainda.
+            </div>
+          ) : null}
+
+          <div className="mt-6 space-y-4">
+            {adminUsers.map((account) => (
+              <article
+                key={account.id}
+                className="rounded-[1.5rem] border border-white/8 bg-white/[0.03] p-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-white">
+                      {account.businessName || account.name}
+                    </p>
+                    <p className="mt-1 text-sm text-white/58">
+                      Proprietário: {account.name}
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+                      account.isActive
+                        ? "border-[#00C896]/20 bg-[#00C896]/10 text-[#00C896]"
+                        : "border-[#ef4444]/20 bg-[#ef4444]/10 text-[#fecaca]"
+                    }`}
+                  >
+                    {account.isActive ? "Ativa" : "Inativa"}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[1.25rem] border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                      Usuário
+                    </span>
+                    <span className="mt-2 block font-semibold text-white">
+                      {account.username || "-"}
+                    </span>
+                  </div>
+                  <div className="rounded-[1.25rem] border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/72">
+                    <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                      Telefone
+                    </span>
+                    <span className="mt-2 block font-semibold text-white">
+                      {account.phone || "Sem telefone"}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="mt-4 flex items-center gap-2 text-sm text-white/55">
+                  <MapPin className="h-4 w-4 text-[#F8C8DC]" />
+                  {account.businessAddress || "Endereço não informado"}
+                </p>
+                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/40">
+                  Criado em {formatCreatedDate(account.createdAt)}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAdminId(account.id);
+                      setAdminForm(buildAccountForm(account));
+                      setAdminActionError("");
+                      setAdminActionSuccess("");
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-white/70 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
+                  >
+                    <PencilLine className="h-4 w-4" />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteAdmin(account)}
+                    className="inline-flex items-center gap-2 rounded-full border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-2 text-sm text-[#fecaca] transition-colors duration-300 hover:bg-[#ef4444]/15"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Excluir
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderCurrentPage = () => {
+    if (isSuperAdmin) {
+      if (currentPath === "/admin/administradores") {
+        return renderAdminAccountsPage;
+      }
+
+      if (currentPath === "/admin/agendamentos") {
+        return (
+          <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+            <h2 className="text-2xl font-semibold text-white">Agendamentos do sistema</h2>
+            <p className="mt-2 text-sm text-white/58">
+              Visão completa das reservas criadas por local.
+            </p>
+            <BookingsList
+              bookings={bookings}
+              isLoading={isLoadingBookings}
+              emptyMessage="Nenhum agendamento registrado até agora."
+              loadingMessage="Carregando agendamentos..."
+              showLocation
+            />
+          </section>
+        );
+      }
+
+      return renderSuperAdminOverview;
+    }
+
+    if (currentPath === "/admin/perfil") {
+      return renderProfilePage;
+    }
+
+    if (currentPath === "/admin/servicos") {
+      return renderServicesPage;
+    }
+
+    return renderAdminOverview;
+  };
+
   return (
     <PortalShell
       badge={isSuperAdmin ? "Super Admin" : "Administrador"}
-      title={isSuperAdmin ? "Painel global do sistema" : "Painel do estabelecimento"}
+      title={isSuperAdmin ? "Painel administrativo" : "Área administrativa"}
       description={
         isSuperAdmin
           ? "Controle as contas administradoras, acompanhe os agendamentos do sistema e leia o faturamento consolidado."
-          : "Gerencie o perfil do local, seus servicos e o desempenho diario da agenda."
+          : "Gerencie o perfil do local, os serviços e o desempenho diário da agenda."
       }
       actions={
         <>
@@ -917,949 +1823,18 @@ export function AdminDashboardPage() {
           </button>
         </>
       }
+      navigation={navigation}
     >
-      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="xl:sticky xl:top-28 xl:self-start">
-          <nav className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#F8C8DC]">
-              Navegacao
-            </p>
-            <p className="mt-3 text-sm leading-6 text-white/55">
-              Menu adaptado ao perfil logado.
-            </p>
+      {currentPath === "/admin/painel" ? <MetricsGrid metrics={metrics} /> : null}
 
-            <div className="mt-6 space-y-3">
-              {menuSections.map((section) => {
-                const Icon = section.icon;
-                const isActive = activeSection === section.id;
-
-                return (
-                  <button
-                    key={section.id}
-                    type="button"
-                    onClick={() => scrollToSection(section.id)}
-                    className={`w-full rounded-[1.5rem] border px-4 py-4 text-left transition-all duration-300 ${
-                      isActive
-                        ? "border-[#00C896]/30 bg-[#00C896]/12 text-white"
-                        : "border-white/8 bg-black/20 text-white/72 hover:border-white/15 hover:text-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-3 text-sm font-semibold">
-                      <Icon className={`h-4 w-4 ${isActive ? "text-[#00C896]" : "text-[#F8C8DC]"}`} />
-                      {section.label}
-                    </span>
-                    <span className="mt-2 block text-xs uppercase tracking-[0.16em] text-white/42">
-                      {section.detail}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
-        </aside>
-
-        <div className="space-y-6">
-          <section id="dashboard-overview" className="space-y-6 scroll-mt-28">
-            <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-              <div className="flex items-center gap-3">
-                <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                  <LayoutPanelTop className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">
-                    {isSuperAdmin ? "Painel global" : "Painel do estabelecimento"}
-                  </h2>
-                  <p className="text-sm text-white/58">
-                    {isSuperAdmin
-                      ? "Resumo financeiro e operacional de todas as contas do sistema."
-                      : "Resumo financeiro do dia e acompanhamento rapido dos clientes agendados."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-4">
-              {metrics.map((metric, index) => {
-                const Icon = metricIcons[index];
-
-                return (
-                  <article
-                    key={metric.label}
-                    className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
-                  >
-                    <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <p className="mt-5 text-sm text-white/60">{metric.label}</p>
-                    <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
-                      {metric.value}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-white/55">{metric.detail}</p>
-                  </article>
-                );
-              })}
-            </div>
-
-            {bookingsError ? (
-              <div className="flex items-start gap-3 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                {bookingsError}
-              </div>
-            ) : null}
-          </section>
-
-          {isSuperAdmin ? (
-            <div className="space-y-6">
-          <section
-            id="admin-accounts"
-            className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
-          >
-            <div className="flex items-center gap-3">
-              <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                <LayoutPanelTop className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-semibold text-white">Dashboard principal</h2>
-                <p className="text-sm text-white/58">
-                  Visao geral dos estabelecimentos e do faturamento do sistema.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-4 xl:grid-cols-2">
-              {locationBreakdown.length ? (
-                locationBreakdown.map((item) => (
-                  <article
-                    key={item.locationName}
-                    className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-lg font-semibold text-white">{item.locationName}</p>
-                        <p className="mt-1 text-sm text-white/55">
-                          {item.bookings} agendamento(s)
-                        </p>
-                      </div>
-                      <span className="text-lg font-semibold text-[#00C896]">
-                        {formatRevenue(item.revenueCents)}
-                      </span>
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <div className="rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
-                  O dashboard global aparece assim que houver reservas registradas.
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section
-            id="system-bookings"
-            className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
-          >
-            <div className="flex items-center gap-3">
-              <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-semibold text-white">Contas administradoras</h2>
-                <p className="text-sm text-white/58">
-                  Crie, edite e remova as contas dos barbeiros e donos de estudio.
-                </p>
-              </div>
-            </div>
-
-            {(adminUsersError || adminActionError || adminActionSuccess) ? (
-              <div className="mt-6 space-y-3">
-                {adminUsersError ? (
-                  <div className="flex items-start gap-3 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    {adminUsersError}
-                  </div>
-                ) : null}
-                {adminActionError ? (
-                  <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                    {adminActionError}
-                  </div>
-                ) : null}
-                {adminActionSuccess ? (
-                  <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
-                    {adminActionSuccess}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="mt-8 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-              <form
-                onSubmit={handleAdminSubmit}
-                className="rounded-[1.75rem] border border-white/8 bg-black/20 p-5"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">
-                      {editingAdminId ? "Editar administrador" : "Novo administrador"}
-                    </h3>
-                    <p className="mt-2 text-sm text-white/58">
-                      Configure o acesso do estabelecimento e seus dados principais.
-                    </p>
-                  </div>
-                  {editingAdminId ? (
-                    <button
-                      type="button"
-                      onClick={resetAdminForm}
-                      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/65 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
-                    >
-                      Cancelar
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  {[
-                    { key: "name", label: "Proprietario", type: "text", required: true },
-                    { key: "username", label: "Usuario", type: "text", required: true },
-                    { key: "email", label: "E-mail", type: "email", required: true },
-                    { key: "phone", label: "Telefone", type: "tel", required: true },
-                    { key: "businessName", label: "Estabelecimento", type: "text", required: true },
-                    { key: "businessPhotoUrl", label: "Foto do local", type: "url", required: false },
-                    { key: "businessAddress", label: "Endereco", type: "text", required: false },
-                    {
-                      key: "password",
-                      label: editingAdminId ? "Nova senha" : "Senha",
-                      type: "password",
-                      required: !editingAdminId,
-                    },
-                  ].map((field) => (
-                    <label key={field.key} className="space-y-2">
-                      <span className="text-sm text-white/60">{field.label}</span>
-                      <input
-                        value={adminForm[field.key as keyof typeof adminForm].toString()}
-                        onChange={(event) =>
-                          setAdminForm((current) => ({
-                            ...current,
-                            [field.key]: event.target.value,
-                          }))
-                        }
-                        className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                        type={field.type}
-                        required={field.required}
-                      />
-                    </label>
-                  ))}
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/60">Status da conta</span>
-                    <select
-                      value={adminForm.isActive ? "active" : "inactive"}
-                      onChange={(event) =>
-                        setAdminForm((current) => ({
-                          ...current,
-                          isActive: event.target.value === "active",
-                        }))
-                      }
-                      className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 focus:border-[#00C896]/35"
-                    >
-                      <option value="active" className="bg-[#101010] text-white">
-                        Ativa
-                      </option>
-                      <option value="inactive" className="bg-[#101010] text-white">
-                        Inativa
-                      </option>
-                    </select>
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingAdmin}
-                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
-                >
-                  {isSubmittingAdmin ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ShieldCheck className="h-4 w-4" />
-                  )}
-                  {editingAdminId ? "Salvar alteracoes" : "Criar conta administradora"}
-                </button>
-              </form>
-
-              <div className="rounded-[1.75rem] border border-white/8 bg-black/20 p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xl font-semibold text-white">Administradores criados</h3>
-                  {isLoadingAdminUsers ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
-                  ) : null}
-                </div>
-
-                {!isLoadingAdminUsers && !adminUsers.length ? (
-                  <div className="mt-6 rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-5 text-sm text-white/58">
-                    Nenhuma conta administradora criada ainda.
-                  </div>
-                ) : null}
-
-                <div className="mt-6 space-y-4">
-                  {adminUsers.map((account) => (
-                    <article
-                      key={account.id}
-                      className="rounded-[1.5rem] border border-white/8 bg-white/[0.03] p-4"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-lg font-semibold text-white">
-                            {account.businessName || account.name}
-                          </p>
-                          <p className="mt-1 text-sm text-white/58">
-                            Proprietario: {account.name}
-                          </p>
-                        </div>
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
-                            account.isActive
-                              ? "border-[#00C896]/20 bg-[#00C896]/10 text-[#00C896]"
-                              : "border-[#ef4444]/20 bg-[#ef4444]/10 text-[#fecaca]"
-                          }`}
-                        >
-                          {account.isActive ? "Ativa" : "Inativa"}
-                        </span>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-[1.25rem] border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/72">
-                          <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                            Usuario
-                          </span>
-                          <span className="mt-2 block font-semibold text-white">
-                            {account.username || "-"}
-                          </span>
-                        </div>
-                        <div className="rounded-[1.25rem] border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/72">
-                          <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                            Telefone
-                          </span>
-                          <span className="mt-2 block font-semibold text-white">
-                            {account.phone || "Sem telefone"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <p className="mt-4 flex items-center gap-2 text-sm text-white/55">
-                        <MapPin className="h-4 w-4 text-[#F8C8DC]" />
-                        {account.businessAddress || "Endereco nao informado"}
-                      </p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/40">
-                        Criado em {formatCreatedDate(account.createdAt)}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingAdminId(account.id);
-                            setAdminForm(buildAccountForm(account));
-                            setAdminActionError("");
-                            setAdminActionSuccess("");
-                          }}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-white/70 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
-                        >
-                          <PencilLine className="h-4 w-4" />
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteAdmin(account)}
-                          className="inline-flex items-center gap-2 rounded-full border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-2 text-sm text-[#fecaca] transition-colors duration-300 hover:bg-[#ef4444]/15"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Excluir
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-            <h2 className="text-2xl font-semibold text-white">Agendamentos do sistema</h2>
-            <p className="mt-2 text-sm text-white/58">
-              Visao completa das reservas criadas por local.
-            </p>
-
-            {isLoadingBookings ? (
-              <div className="mt-6 flex items-center gap-3 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-4 text-sm text-white/65">
-                <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
-                Carregando agendamentos...
-              </div>
-            ) : null}
-
-            {!isLoadingBookings && !bookings.length ? (
-              <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
-                Nenhum agendamento registrado ate agora.
-              </div>
-            ) : null}
-
-            <div className="mt-6 space-y-4">
-              {bookings.map((booking) => (
-                <article
-                  key={booking.id}
-                  className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <p className="text-lg font-semibold text-white">{booking.clientName}</p>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
-                          #{booking.id}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-white/58">
-                        {booking.locationName || "Local"} - {booking.serviceName}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusClassName(
-                        booking.status,
-                      )}`}
-                    >
-                      {getStatusLabel(booking.status)}
-                    </span>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Data
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">
-                        {formatScheduledDate(booking.scheduledDate)}
-                      </span>
-                    </div>
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Horario
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">
-                        {booking.scheduledTime}
-                      </span>
-                    </div>
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Telefone
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">{booking.phone}</span>
-                    </div>
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Valor
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">
-                        {booking.servicePrice}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
+      {bookingsError &&
+      (currentPath === "/admin/painel" || currentPath === "/admin/agendamentos") ? (
+        <div className="mt-6 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+          {bookingsError}
         </div>
-      ) : (
-        <div className="mt-8 space-y-6">
-          <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-            <section
-              id="business-profile"
-              className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
-            >
-              <div className="flex items-center gap-3">
-                <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                  <Store className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">Perfil do local</h2>
-                  <p className="text-sm text-white/58">
-                    Atualize nome do estabelecimento, foto, proprietario e endereco.
-                  </p>
-                </div>
-              </div>
+      ) : null}
 
-              {(profileError || profileSuccess || zipLookupError || zipLookupSuccess || profileUploadError) ? (
-                <div className="mt-6 space-y-3">
-                  {profileError ? (
-                    <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                      {profileError}
-                    </div>
-                  ) : null}
-                  {profileSuccess ? (
-                    <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
-                      {profileSuccess}
-                    </div>
-                  ) : null}
-                  {zipLookupError ? (
-                    <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                      {zipLookupError}
-                    </div>
-                  ) : null}
-                  {zipLookupSuccess ? (
-                    <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
-                      CEP localizado: {zipLookupSuccess}
-                    </div>
-                  ) : null}
-                  {profileUploadError ? (
-                    <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                      {profileUploadError}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {isLoadingProfile ? (
-                <div className="mt-6 flex items-center gap-3 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-4 text-sm text-white/65">
-                  <LoaderCircle className="h-4 w-4 animate-spin text-[#00C896]" />
-                  Carregando perfil do estabelecimento...
-                </div>
-              ) : (
-                <form onSubmit={handleProfileSubmit} className="mt-6 space-y-4">
-                  <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
-                    <span className="text-sm text-white/60">Foto do local</span>
-                    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
-                      <div className="h-28 w-28 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.04]">
-                        {profileForm.businessPhotoUrl ? (
-                          <img
-                            src={profileForm.businessPhotoUrl}
-                            alt={profileForm.businessName || "Foto do local"}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm text-white/45">
-                            Sem foto
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 space-y-3">
-                        <label className="inline-flex cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/78 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]">
-                          Upload da foto
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="sr-only"
-                            onChange={handleBusinessPhotoUpload}
-                          />
-                        </label>
-
-                        {profileForm.businessPhotoUrl ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setProfileForm((current) => ({
-                                ...current,
-                                businessPhotoUrl: "",
-                              }))
-                            }
-                            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/20 px-5 py-3 text-sm font-semibold text-white/72 transition-all duration-300 hover:border-[#ef4444]/35 hover:text-[#fecaca]"
-                          >
-                            Remover foto
-                          </button>
-                        ) : null}
-
-                        <p className="text-xs leading-6 text-white/42">
-                          Imagem em JPG, PNG ou WebP com ate 2MB.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-[0.68fr_0.32fr]">
-                    <label className="space-y-2">
-                      <span className="text-sm text-white/60">Buscar CEP</span>
-                      <input
-                        value={profileZipCode}
-                        onChange={(event) => setProfileZipCode(event.target.value)}
-                        className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                        placeholder="00000-000"
-                        inputMode="numeric"
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleZipLookup()}
-                      disabled={isLookingUpZipCode}
-                      className="mt-7 inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/78 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
-                    >
-                      {isLookingUpZipCode ? "Buscando CEP..." : "Buscar CEP"}
-                    </button>
-                  </div>
-
-                  {[
-                    { key: "businessName", label: "Nome do estabelecimento", type: "text" },
-                    { key: "name", label: "Nome do proprietario", type: "text" },
-                    { key: "phone", label: "Telefone", type: "tel" },
-                    { key: "businessAddress", label: "Endereco / local", type: "text" },
-                  ].map((field) => (
-                    <label key={field.key} className="space-y-2">
-                      <span className="text-sm text-white/60">{field.label}</span>
-                      <input
-                        value={profileForm[field.key as keyof typeof profileForm]}
-                        onChange={(event) =>
-                          setProfileForm((current) => ({
-                            ...current,
-                            [field.key]: event.target.value,
-                          }))
-                        }
-                        className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                        type={field.type}
-                        required
-                      />
-                    </label>
-                  ))}
-
-                  <button
-                    type="submit"
-                    disabled={isSubmittingProfile}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
-                  >
-                    {isSubmittingProfile ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Store className="h-4 w-4" />
-                    )}
-                    Salvar perfil
-                  </button>
-                </form>
-              )}
-            </section>
-
-            <section className="rounded-[2rem] border border-[#F8C8DC]/15 bg-[linear-gradient(180deg,rgba(248,200,220,0.12),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-              <div className="flex items-center gap-3">
-                <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
-                  <CircleDollarSign className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">Operacao do dia</h2>
-                  <p className="text-sm text-white/58">
-                    Lista de clientes agendados, faturamento diario e historico.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8 grid gap-4">
-                {todayBookings.length ? (
-                  todayBookings.map((booking) => (
-                    <article
-                      key={booking.id}
-                      className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-lg font-semibold text-white">{booking.clientName}</p>
-                          <p className="mt-1 text-sm text-white/55">
-                            {booking.scheduledTime} - {booking.serviceName}
-                          </p>
-                        </div>
-                        <span className="text-base font-semibold text-[#F8C8DC]">
-                          {booking.servicePrice}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm text-white/58">Telefone: {booking.phone}</p>
-                    </article>
-                  ))
-                ) : (
-                  <div className="rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
-                    Nenhum cliente agendado para hoje.
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <section
-              id="business-services"
-              className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
-            >
-              <div className="flex items-center gap-3">
-                <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
-                  <BadgeCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">Gestao de servicos</h2>
-                  <p className="text-sm text-white/58">
-                    Cadastre servicos, edite valores e ative ou desative itens.
-                  </p>
-                </div>
-              </div>
-
-              {(servicesError || serviceActionError || serviceActionSuccess) ? (
-                <div className="mt-6 space-y-3">
-                  {servicesError ? (
-                    <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                      {servicesError}
-                    </div>
-                  ) : null}
-                  {serviceActionError ? (
-                    <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                      {serviceActionError}
-                    </div>
-                  ) : null}
-                  {serviceActionSuccess ? (
-                    <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
-                      {serviceActionSuccess}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <form
-                onSubmit={handleServiceSubmit}
-                className="mt-6 rounded-[1.75rem] border border-white/8 bg-black/20 p-5"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">
-                      {editingServiceId ? "Editar servico" : "Novo servico"}
-                    </h3>
-                    <p className="mt-2 text-sm text-white/58">
-                      Defina nome, descricao e preco do atendimento.
-                    </p>
-                  </div>
-                  {editingServiceId ? (
-                    <button
-                      type="button"
-                      onClick={resetServiceForm}
-                      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/65 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
-                    >
-                      Cancelar
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/60">Nome do servico</span>
-                    <input
-                      value={serviceForm.name}
-                      onChange={(event) =>
-                        setServiceForm((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                      required
-                    />
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/60">Descricao</span>
-                    <textarea
-                      value={serviceForm.description}
-                      onChange={(event) =>
-                        setServiceForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      className="min-h-28 w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                    />
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/60">Preco</span>
-                    <input
-                      value={serviceForm.price}
-                      onChange={(event) =>
-                        setServiceForm((current) => ({
-                          ...current,
-                          price: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
-                      placeholder="60,00"
-                      inputMode="decimal"
-                      required
-                    />
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingService}
-                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
-                >
-                  {isSubmittingService ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <BadgeCheck className="h-4 w-4" />
-                  )}
-                  {editingServiceId ? "Salvar servico" : "Criar servico"}
-                </button>
-              </form>
-            </section>
-
-            <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">Servicos cadastrados</h2>
-                  <p className="mt-2 text-sm text-white/58">
-                    Controle de disponibilidade e valores do estabelecimento.
-                  </p>
-                </div>
-                {isLoadingServices ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
-                ) : null}
-              </div>
-
-              {!isLoadingServices && !services.length ? (
-                <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
-                  Nenhum servico cadastrado ainda.
-                </div>
-              ) : null}
-
-              <div className="mt-6 space-y-4">
-                {services.map((service) => (
-                  <article
-                    key={service.id}
-                    className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <p className="text-lg font-semibold text-white">{service.name}</p>
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
-                              service.isActive
-                                ? "border-[#00C896]/20 bg-[#00C896]/10 text-[#00C896]"
-                                : "border-[#ef4444]/20 bg-[#ef4444]/10 text-[#fecaca]"
-                            }`}
-                          >
-                            {service.isActive ? "Ativo" : "Inativo"}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-white/58">
-                          {service.description || "Sem descricao cadastrada."}
-                        </p>
-                      </div>
-                      <span className="text-lg font-semibold text-[#F8C8DC]">
-                        {service.priceLabel}
-                      </span>
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingServiceId(service.id);
-                          setServiceForm({
-                            name: service.name,
-                            description: service.description,
-                            price: formatPriceInput(service.priceCents),
-                          });
-                          setServiceActionError("");
-                          setServiceActionSuccess("");
-                        }}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors duration-300 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
-                      >
-                        <PencilLine className="h-4 w-4" />
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleToggleService(service)}
-                        className="inline-flex items-center gap-2 rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-2 text-sm text-[#d7fff4] transition-colors duration-300 hover:bg-[#00C896]/15"
-                      >
-                        <Power className="h-4 w-4" />
-                        {service.isActive ? "Desativar" : "Ativar"}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </div>
-
-          <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
-            <h2 className="text-2xl font-semibold text-white">Historico de atendimentos</h2>
-            <p className="mt-2 text-sm text-white/58">
-              Todas as reservas registradas para este estabelecimento.
-            </p>
-
-            {isLoadingBookings ? (
-              <div className="mt-6 flex items-center gap-3 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-4 text-sm text-white/65">
-                <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
-                Carregando historico...
-              </div>
-            ) : null}
-
-            {!isLoadingBookings && !bookings.length ? (
-              <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
-                Nenhum atendimento registrado ate agora.
-              </div>
-            ) : null}
-
-            <div className="mt-6 space-y-4">
-              {bookings.map((booking) => (
-                <article
-                  key={booking.id}
-                  className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-lg font-semibold text-white">{booking.clientName}</p>
-                      <p className="mt-2 text-sm text-white/58">{booking.serviceName}</p>
-                    </div>
-                    <span
-                      className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusClassName(
-                        booking.status,
-                      )}`}
-                    >
-                      {getStatusLabel(booking.status)}
-                    </span>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Data
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">
-                        {formatScheduledDate(booking.scheduledDate)}
-                      </span>
-                    </div>
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Horario
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">
-                        {booking.scheduledTime}
-                      </span>
-                    </div>
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Telefone
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">{booking.phone}</span>
-                    </div>
-                    <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                      <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
-                        Valor
-                      </span>
-                      <span className="mt-2 block font-semibold text-white">
-                        {booking.servicePrice}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
-        </div>
-      </div>
+      <div className="mt-8 space-y-6">{renderCurrentPage()}</div>
     </PortalShell>
   );
 }

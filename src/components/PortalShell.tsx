@@ -7,6 +7,7 @@ type PortalShellProps = {
   title: string;
   description: string;
   actions?: ReactNode;
+  navigation?: ReactNode;
   children: ReactNode;
 };
 
@@ -15,6 +16,7 @@ export function PortalShell({
   title,
   description,
   actions,
+  navigation,
   children,
 }: PortalShellProps) {
   return (
@@ -42,6 +44,10 @@ export function PortalShell({
             Voltar ao site
           </Link>
         </div>
+
+        {navigation ? (
+          <div className="mx-auto max-w-7xl px-6 pb-4 lg:px-8">{navigation}</div>
+        ) : null}
       </header>
 
       <main className="px-6 pb-16 pt-10 lg:px-8">

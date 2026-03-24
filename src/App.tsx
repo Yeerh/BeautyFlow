@@ -14,7 +14,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/admin-acesso" element={<AdminAuthPage />} />
       <Route
-        path="/admin"
+        path="/admin/*"
         element={
           <ProtectedAdminRoute>
             <AdminDashboardPage />

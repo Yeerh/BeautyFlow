@@ -67,7 +67,7 @@ router.post("/register", async (req, res, next) => {
       trimmedPassword.length < MIN_PASSWORD_LENGTH
     ) {
       res.status(400).json({
-        message: "Preencha nome, e-mail, telefone e uma senha valida.",
+        message: "Preencha nome, e-mail, telefone e uma senha válida.",
       });
       return;
     }
@@ -78,7 +78,7 @@ router.post("/register", async (req, res, next) => {
 
     if (existingUser) {
       res.status(409).json({
-        message: "Ja existe uma conta cadastrada com este e-mail.",
+        message: "Já existe uma conta cadastrada com este e-mail.",
       });
       return;
     }
@@ -117,7 +117,7 @@ router.post("/login", async (req, res, next) => {
 
     if (typeof loginIdentifier !== "string" || typeof password !== "string") {
       res.status(400).json({
-        message: "Informe usuario ou e-mail e senha para continuar.",
+        message: "Informe usuário ou e-mail e senha para continuar.",
       });
       return;
     }
@@ -126,7 +126,7 @@ router.post("/login", async (req, res, next) => {
 
     if (!loginIdentifier.trim() || !trimmedPassword) {
       res.status(400).json({
-        message: "Informe usuario ou e-mail e senha para continuar.",
+        message: "Informe usuário ou e-mail e senha para continuar.",
       });
       return;
     }
@@ -137,7 +137,7 @@ router.post("/login", async (req, res, next) => {
 
     if (!user || !user.password) {
       res.status(401).json({
-        message: "Usuario, e-mail ou senha invalidos.",
+        message: "Usuário, e-mail ou senha inválidos.",
       });
       return;
     }
@@ -146,7 +146,7 @@ router.post("/login", async (req, res, next) => {
 
     if (!isPasswordValid) {
       res.status(401).json({
-        message: "Usuario, e-mail ou senha invalidos.",
+        message: "Usuário, e-mail ou senha inválidos.",
       });
       return;
     }
