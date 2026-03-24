@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useClientAuth } from "@/context/ClientAuthContext";
+import { clientRoutes } from "@/lib/portalNavigation";
 
 export function ProtectedAdminRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -11,7 +12,7 @@ export function ProtectedAdminRoute({ children }: { children: ReactNode }) {
   }
 
   if (user && user.role === "client") {
-    return <Navigate to="/cliente-agendamento" replace state={{ from: location }} />;
+    return <Navigate to={clientRoutes.bookings} replace state={{ from: location }} />;
   }
 
   return <>{children}</>;

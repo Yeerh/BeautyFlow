@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Clock3,
   LoaderCircle,
-  LogOut,
   MapPin,
   MessageCircle,
   Phone,
@@ -14,11 +13,12 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PortalShell } from "@/components/PortalShell";
+import { RoleSidebarShell } from "@/components/RoleSidebarShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
 import { bookingAvailability } from "@/data/portalContent";
 import { buildApiUrl } from "@/lib/api";
+import { buildClientMenu, clientRoutes } from "@/lib/portalNavigation";
 
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
 const whatsappBaseNumber = "5581992388506";
@@ -432,11 +432,16 @@ export function ClientBookingPage() {
     }
   };
 
+  const menuItems = buildClientMenu(handleLogout);
+
   return (
-    <PortalShell
+    <RoleSidebarShell
       badge="Cliente"
       title="Confirmar agendamento"
-      description="Escolha o servico do local selecionado, defina data e horario no resumo do pedido e confirme no WhatsApp so depois do registro no banco."
+      description="Escolha o serviço do local selecionado, defina data e horário no resumo do pedido e confirme no WhatsApp só depois do registro no banco."
+      menuItems={menuItems}
+      userName={customerName}
+      userSubtitle={customerEmail || "Área do cliente"}
       actions={
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -445,11 +450,11 @@ export function ClientBookingPage() {
           </div>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => navigate(clientRoutes.bookings)}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/72 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
           >
-            <LogOut className="h-4 w-4" />
-            Sair
+            <Store className="h-4 w-4" />
+            Trocar local
           </button>
         </>
       }
@@ -860,6 +865,6 @@ export function ClientBookingPage() {
           </div>
         </div>
       ) : null}
-    </PortalShell>
+    </RoleSidebarShell>
   );
 }

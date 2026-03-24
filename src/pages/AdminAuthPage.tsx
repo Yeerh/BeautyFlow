@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 import { useClientAuth } from "@/context/ClientAuthContext";
+import { adminRoutes, clientRoutes } from "@/lib/portalNavigation";
 
 export function AdminAuthPage() {
   const { isAuthenticated, login, logout, user } = useClientAuth();
@@ -21,7 +22,13 @@ export function AdminAuthPage() {
   if (isAuthenticated && user) {
     return (
       <Navigate
-        to={user.role === "client" ? "/cliente-agendamento" : "/admin/painel"}
+        to={
+          user.role === "client"
+            ? clientRoutes.bookings
+            : user.role === "super_admin"
+              ? adminRoutes.dashboard
+              : adminRoutes.panel
+        }
         replace
       />
     );
@@ -41,7 +48,9 @@ export function AdminAuthPage() {
         return;
       }
 
-      window.location.assign("/admin/painel");
+      window.location.assign(
+        authenticatedUser.role === "super_admin" ? adminRoutes.dashboard : adminRoutes.panel,
+      );
     } catch (currentError) {
       setError(
         currentError instanceof Error

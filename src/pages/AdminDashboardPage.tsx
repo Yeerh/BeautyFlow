@@ -13,10 +13,11 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { NavLink, Navigate, useLocation } from "react-router-dom";
-import { PortalShell } from "@/components/PortalShell";
+import { Navigate, useLocation } from "react-router-dom";
+import { RoleSidebarShell } from "@/components/RoleSidebarShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { buildApiUrl } from "@/lib/api";
+import { adminRoutes, buildAdminMenu } from "@/lib/portalNavigation";
 
 type DashboardBooking = {
   id: number;
@@ -77,15 +78,16 @@ const DASHBOARD_ERROR_MESSAGE =
 const metricIcons = [CircleDollarSign, BadgeCheck, LayoutPanelTop, UserRound] as const;
 
 const ADMIN_NAV_ITEMS: AdminNavItem[] = [
-  { to: "/admin/painel", label: "Painel" },
-  { to: "/admin/perfil", label: "Perfil" },
-  { to: "/admin/servicos", label: "Serviços" },
+  { to: adminRoutes.panel, label: "Painel" },
+  { to: adminRoutes.services, label: "Serviços" },
+  { to: adminRoutes.profile, label: "Perfil" },
+  { to: adminRoutes.revenue, label: "Faturamento do dia" },
 ];
 
 const SUPER_ADMIN_NAV_ITEMS: AdminNavItem[] = [
-  { to: "/admin/painel", label: "Painel" },
-  { to: "/admin/administradores", label: "Administradores" },
-  { to: "/admin/agendamentos", label: "Agendamentos" },
+  { to: adminRoutes.registration, label: "Registro" },
+  { to: adminRoutes.dashboard, label: "Dashboard" },
+  { to: adminRoutes.revenue, label: "Faturamento" },
 ];
 
 function getReadableDashboardError(error: unknown, fallbackMessage: string) {
@@ -146,7 +148,7 @@ function getStatusClassName(status: string) {
 }
 
 function formatRevenue(valueInCents: number) {
-  return `${(valueInCents / 100).toFixed(2).replace(".", ",")}$`;
+  return `R$ ${(valueInCents / 100).toFixed(2).replace(".", ",")}`;
 }
 
 function formatPriceInput(priceCents: number) {
@@ -357,7 +359,16 @@ export function AdminDashboardPage() {
 
   const navItems = isSuperAdmin ? SUPER_ADMIN_NAV_ITEMS : ADMIN_NAV_ITEMS;
   const currentPath = location.pathname.replace(/\/$/, "") || "/admin";
-  const defaultPath = navItems[0]?.to || "/admin/painel";
+  const defaultPath = isSuperAdmin ? adminRoutes.dashboard : adminRoutes.panel;
+  const redirectedPath = isSuperAdmin
+    ? {
+        "/admin/painel": adminRoutes.dashboard,
+        "/admin/administradores": adminRoutes.registration,
+        "/admin/agendamentos": adminRoutes.revenue,
+      }[currentPath]
+    : undefined;
+  const activePath = redirectedPath ?? currentPath;
+  const menuItems = buildAdminMenu(isSuperAdmin, handleLogout);
 
   useEffect(() => {
     if (!token) {
@@ -614,10 +625,18 @@ export function AdminDashboardPage() {
     );
   }, [activeBookings]);
 
-  const handleLogout = () => {
+  const averageTicketCents = activeBookings.length
+    ? Math.round(totalRevenueCents / activeBookings.length)
+    : 0;
+  const todayAverageTicketCents = todayBookings.length
+    ? Math.round(todayRevenueCents / todayBookings.length)
+    : 0;
+  const topLocation = locationBreakdown[0] ?? null;
+
+  function handleLogout() {
     logout();
     window.location.assign("/admin-acesso");
-  };
+  }
 
   const handleBusinessPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1033,33 +1052,15 @@ export function AdminDashboardPage() {
     }
   };
 
-  const navigation = (
-    <div className="overflow-x-auto">
-      <div className="flex min-w-max gap-3">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-300 ${
-                isActive
-                  ? "border-[#00C896]/35 bg-[#00C896]/12 text-[#00C896]"
-                  : "border-white/10 bg-white/5 text-white/72 hover:-translate-y-0.5 hover:border-[#F8C8DC]/35 hover:text-[#F8C8DC]"
-              }`
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </div>
-    </div>
-  );
-
   if (currentPath === "/admin") {
     return <Navigate to={defaultPath} replace />;
   }
 
-  if (!navItems.some((item) => item.to === currentPath)) {
+  if (redirectedPath && redirectedPath !== currentPath) {
+    return <Navigate to={redirectedPath} replace />;
+  }
+
+  if (!navItems.some((item) => item.to === activePath)) {
     return <Navigate to={defaultPath} replace />;
   }
 
@@ -1534,6 +1535,159 @@ export function AdminDashboardPage() {
     </div>
   );
 
+  const renderRevenuePage = isSuperAdmin ? (
+    <>
+      <section className="rounded-[2rem] border border-[#00C896]/15 bg-[linear-gradient(180deg,rgba(0,200,150,0.12),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
+            <CircleDollarSign className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Faturamento do sistema</h2>
+            <p className="text-sm text-white/58">
+              Consolidação por local com ticket médio e histórico global.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-4 lg:grid-cols-4">
+          {[
+            {
+              label: "Receita total",
+              value: formatRevenue(totalRevenueCents),
+            },
+            {
+              label: "Ticket médio",
+              value: formatRevenue(averageTicketCents),
+            },
+            {
+              label: "Agendamentos",
+              value: String(activeBookings.length),
+            },
+            {
+              label: "Local líder",
+              value: topLocation?.locationName || "Sem dados",
+            },
+          ].map((item) => (
+            <article
+              key={item.label}
+              className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+            >
+              <p className="text-xs uppercase tracking-[0.18em] text-white/40">{item.label}</p>
+              <p className="mt-3 text-xl font-semibold text-white">{item.value}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <h2 className="text-2xl font-semibold text-white">Receita por estabelecimento</h2>
+        <p className="mt-2 text-sm text-white/58">
+          Compare os locais ativos usando reservas e faturamento acumulado.
+        </p>
+
+        <div className="mt-6 grid gap-4 xl:grid-cols-2">
+          {locationBreakdown.length ? (
+            locationBreakdown.map((item) => (
+              <article
+                key={item.locationName}
+                className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-lg font-semibold text-white">{item.locationName}</p>
+                    <p className="mt-1 text-sm text-white/55">
+                      {item.bookings} agendamento(s)
+                    </p>
+                  </div>
+                  <span className="text-lg font-semibold text-[#00C896]">
+                    {formatRevenue(item.revenueCents)}
+                  </span>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
+              O faturamento consolidado aparecerá assim que houver reservas registradas.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <h2 className="text-2xl font-semibold text-white">Reservas registradas</h2>
+        <p className="mt-2 text-sm text-white/58">
+          Histórico completo usado no cálculo do faturamento.
+        </p>
+        <BookingsList
+          bookings={bookings}
+          isLoading={isLoadingBookings}
+          emptyMessage="Nenhum agendamento registrado até agora."
+          loadingMessage="Carregando reservas..."
+          showLocation
+        />
+      </section>
+    </>
+  ) : (
+    <>
+      <section className="rounded-[2rem] border border-[#F8C8DC]/15 bg-[linear-gradient(180deg,rgba(248,200,220,0.12),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
+            <CircleDollarSign className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Faturamento do dia</h2>
+            <p className="text-sm text-white/58">
+              Receita diária, ticket médio e atendimentos confirmados do estabelecimento.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-4 lg:grid-cols-4">
+          {[
+            {
+              label: "Receita de hoje",
+              value: formatRevenue(todayRevenueCents),
+            },
+            {
+              label: "Ticket médio",
+              value: formatRevenue(todayAverageTicketCents),
+            },
+            {
+              label: "Clientes de hoje",
+              value: String(todayBookings.length),
+            },
+            {
+              label: "Receita total",
+              value: formatRevenue(totalRevenueCents),
+            },
+          ].map((item) => (
+            <article
+              key={item.label}
+              className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+            >
+              <p className="text-xs uppercase tracking-[0.18em] text-white/40">{item.label}</p>
+              <p className="mt-3 text-xl font-semibold text-white">{item.value}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <h2 className="text-2xl font-semibold text-white">Atendimentos de hoje</h2>
+        <p className="mt-2 text-sm text-white/58">
+          Lista usada para o fechamento diário do caixa.
+        </p>
+        <BookingsList
+          bookings={todayBookings}
+          isLoading={isLoadingBookings}
+          emptyMessage="Nenhum atendimento agendado para hoje."
+          loadingMessage="Carregando atendimentos de hoje..."
+        />
+      </section>
+    </>
+  );
+
   const renderAdminAccountsPage = (
     <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
       <div className="flex items-center gap-3">
@@ -1762,8 +1916,12 @@ export function AdminDashboardPage() {
 
   const renderCurrentPage = () => {
     if (isSuperAdmin) {
-      if (currentPath === "/admin/administradores") {
+      if (activePath === adminRoutes.registration) {
         return renderAdminAccountsPage;
+      }
+
+      if (activePath === adminRoutes.revenue) {
+        return renderRevenuePage;
       }
 
       if (currentPath === "/admin/agendamentos") {
@@ -1787,19 +1945,23 @@ export function AdminDashboardPage() {
       return renderSuperAdminOverview;
     }
 
-    if (currentPath === "/admin/perfil") {
+    if (activePath === adminRoutes.profile) {
       return renderProfilePage;
     }
 
-    if (currentPath === "/admin/servicos") {
+    if (activePath === adminRoutes.services) {
       return renderServicesPage;
+    }
+
+    if (activePath === adminRoutes.revenue) {
+      return renderRevenuePage;
     }
 
     return renderAdminOverview;
   };
 
   return (
-    <PortalShell
+    <RoleSidebarShell
       badge={isSuperAdmin ? "Super Admin" : "Administrador"}
       title={isSuperAdmin ? "Painel administrativo" : "Área administrativa"}
       description={
@@ -1807,6 +1969,10 @@ export function AdminDashboardPage() {
           ? "Controle as contas administradoras, acompanhe os agendamentos do sistema e leia o faturamento consolidado."
           : "Gerencie o perfil do local, os serviços e o desempenho diário da agenda."
       }
+      menuItems={menuItems}
+      userName={profile?.businessName || profile?.name || user?.name || "BeautyFlow"}
+      userSubtitle={profile?.username || user?.username || user?.email || "Área administrativa"}
+      userImageUrl={profile?.businessPhotoUrl || user?.businessPhotoUrl}
       actions={
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -1823,18 +1989,17 @@ export function AdminDashboardPage() {
           </button>
         </>
       }
-      navigation={navigation}
     >
-      {currentPath === "/admin/painel" ? <MetricsGrid metrics={metrics} /> : null}
+      {activePath === defaultPath ? <MetricsGrid metrics={metrics} /> : null}
 
       {bookingsError &&
-      (currentPath === "/admin/painel" || currentPath === "/admin/agendamentos") ? (
+      (activePath === defaultPath || activePath === adminRoutes.revenue) ? (
         <div className="mt-6 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
           {bookingsError}
         </div>
       ) : null}
 
       <div className="mt-8 space-y-6">{renderCurrentPage()}</div>
-    </PortalShell>
+    </RoleSidebarShell>
   );
 }

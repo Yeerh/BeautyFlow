@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { contactLinks } from "@/data/landingContent";
 import { useClientAuth } from "@/context/ClientAuthContext";
+import { adminRoutes } from "@/lib/portalNavigation";
 
 export function ProtectedClientRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -18,7 +19,7 @@ export function ProtectedClientRoute({ children }: { children: ReactNode }) {
   }
 
   if (user && user.role !== "client") {
-    return <Navigate to="/admin" replace state={{ from: location }} />;
+    return <Navigate to={adminRoutes.panel} replace state={{ from: location }} />;
   }
 
   return <>{children}</>;

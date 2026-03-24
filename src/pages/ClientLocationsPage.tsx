@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, LogOut, MapPin, Store, UserRound } from "lucide-react";
+import { AlertCircle, Mail, MapPin, Store, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { PortalShell } from "@/components/PortalShell";
+import { RoleSidebarShell } from "@/components/RoleSidebarShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
 import { buildApiUrl } from "@/lib/api";
+import { buildClientMenu, clientRoutes } from "@/lib/portalNavigation";
 
 type LocationItem = {
   id: number;
@@ -15,7 +16,7 @@ type LocationItem = {
 };
 
 const LOCATIONS_ERROR_MESSAGE =
-  "Nao foi possivel carregar os locais disponiveis agora. Tente novamente em alguns instantes.";
+  "Não foi possível carregar os locais disponíveis agora. Tente novamente em alguns instantes.";
 
 function getReadableLocationsError(error: unknown, fallbackMessage: string) {
   if (
@@ -50,7 +51,7 @@ export function ClientLocationsPage() {
         };
 
         if (!response.ok) {
-          throw new Error(data.message || "Nao foi possivel carregar os locais.");
+          throw new Error(data.message || "Não foi possível carregar os locais.");
         }
 
         if (!isCancelled) {
@@ -67,7 +68,7 @@ export function ClientLocationsPage() {
       }
     }
 
-    loadLocations();
+    void loadLocations();
 
     return () => {
       isCancelled = true;
@@ -79,11 +80,16 @@ export function ClientLocationsPage() {
     navigate(contactLinks.clientPortal, { replace: true });
   };
 
+  const menuItems = buildClientMenu(handleLogout);
+
   return (
-    <PortalShell
+    <RoleSidebarShell
       badge="Cliente"
-      title="Escolha o local"
-      description="Selecione a barbearia ou estudio desejado antes de seguir para o agendamento."
+      title="Agendamentos"
+      description="Escolha a barbearia ou o estúdio disponível antes de seguir para a reserva."
+      menuItems={menuItems}
+      userName={user?.name || "Cliente BeautyFlow"}
+      userSubtitle={user?.email || "Área do cliente"}
       actions={
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -92,17 +98,17 @@ export function ClientLocationsPage() {
           </div>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => navigate(clientRoutes.profile)}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/72 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
           >
-            <LogOut className="h-4 w-4" />
-            Sair
+            <Mail className="h-4 w-4" />
+            Ver perfil
           </button>
         </>
       }
     >
       {locationsError ? (
-        <div className="flex items-start gap-3 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+        <div className="mb-6 flex items-start gap-3 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           {locationsError}
         </div>
@@ -110,7 +116,7 @@ export function ClientLocationsPage() {
 
       {isLoadingLocations ? (
         <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-6 py-10 text-sm text-white/62 shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
-          Carregando locais disponiveis...
+          Carregando locais disponíveis...
         </div>
       ) : null}
 
@@ -121,7 +127,7 @@ export function ClientLocationsPage() {
       ) : null}
 
       {!isLoadingLocations && locations.length ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 xl:grid-cols-2 2xl:grid-cols-3">
           {locations.map((location) => (
             <article
               key={location.id}
@@ -146,20 +152,20 @@ export function ClientLocationsPage() {
                 <div>
                   <h2 className="text-2xl font-semibold text-white">{location.businessName}</h2>
                   <p className="mt-2 text-sm text-white/58">
-                    Proprietario: {location.ownerName}
+                    Proprietário: {location.ownerName}
                   </p>
                 </div>
 
                 <div className="rounded-[1.25rem] border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/70">
                   <span className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#00C896]" />
-                    {location.businessAddress || "Endereco nao informado"}
+                    {location.businessAddress || "Endereço não informado"}
                   </span>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => navigate(`${contactLinks.clientBooking}/${location.id}`)}
+                  onClick={() => navigate(`${clientRoutes.bookings}/${location.id}`)}
                   className="inline-flex w-full items-center justify-center rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
                 >
                   Escolher este local
@@ -169,6 +175,6 @@ export function ClientLocationsPage() {
           ))}
         </div>
       ) : null}
-    </PortalShell>
+    </RoleSidebarShell>
   );
 }

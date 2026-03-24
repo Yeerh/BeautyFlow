@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
@@ -13,6 +11,7 @@ import {
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { type AuthRole, useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
+import { adminRoutes } from "@/lib/portalNavigation";
 
 type AuthMode = "login" | "register";
 
@@ -26,11 +25,19 @@ function getAuthErrorMessage(errorCode: string | null) {
 }
 
 function getDefaultRedirectPath(role: AuthRole) {
-  return role === "client" ? contactLinks.clientBooking : "/admin";
+  if (role === "super_admin") {
+    return adminRoutes.dashboard;
+  }
+
+  return role === "client" ? contactLinks.clientBooking : adminRoutes.panel;
 }
 
 function resolvePostAuthRedirect(role: AuthRole, requestedPath: string) {
-  return role === "client" ? requestedPath : "/admin";
+  if (role === "client") {
+    return requestedPath;
+  }
+
+  return role === "super_admin" ? adminRoutes.dashboard : adminRoutes.panel;
 }
 
 export function FullScreenSignup() {
@@ -68,10 +75,7 @@ export function FullScreenSignup() {
   }, [location.state, user]);
 
   useEffect(() => {
-    const nextError = getAuthErrorMessage(
-      new URLSearchParams(location.search).get("error"),
-    );
-
+    const nextError = getAuthErrorMessage(new URLSearchParams(location.search).get("error"));
     setError(nextError);
   }, [location.search]);
 
@@ -89,9 +93,7 @@ export function FullScreenSignup() {
       window.location.assign(resolvePostAuthRedirect(authenticatedUser.role, redirectTo));
     } catch (currentError) {
       setError(
-        currentError instanceof Error
-          ? currentError.message
-          : "Nao foi possivel entrar na conta.",
+        currentError instanceof Error ? currentError.message : "Não foi possível entrar na conta.",
       );
     } finally {
       setIsSubmitting(false);
@@ -119,9 +121,7 @@ export function FullScreenSignup() {
       window.location.assign(resolvePostAuthRedirect(authenticatedUser.role, redirectTo));
     } catch (currentError) {
       setError(
-        currentError instanceof Error
-          ? currentError.message
-          : "Nao foi possivel criar a conta.",
+        currentError instanceof Error ? currentError.message : "Não foi possível criar a conta.",
       );
     } finally {
       setIsSubmitting(false);
@@ -157,16 +157,16 @@ export function FullScreenSignup() {
           <div className="absolute bottom-10 left-10 right-10 max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#00C896]/20 bg-[#00C896]/12 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#00C896]">
               <Sparkles className="h-4 w-4" />
-              Area do cliente
+              Área do cliente
             </span>
 
             <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-tight text-white">
-              Entre ou crie sua conta para acessar o calendario de agendamentos.
+              Entre ou crie sua conta para acessar o calendário de agendamentos.
             </h1>
 
             <p className="mt-4 max-w-lg text-sm leading-7 text-white/68">
-              Crie sua conta com nome, e-mail, telefone e senha. Seus dados sao
-              enviados para o backend e registrados no banco via Prisma.
+              Crie sua conta com nome, e-mail, telefone e senha. Seus dados são enviados
+              para o backend e registrados no banco via Prisma.
             </p>
           </div>
         </div>
@@ -196,8 +196,8 @@ export function FullScreenSignup() {
               </h2>
               <p className="mt-3 text-sm leading-7 text-white/62">
                 {mode === "login"
-                  ? "Entre com e-mail e senha para seguir ao calendario."
-                  : "Cadastre nome, e-mail, telefone e senha para liberar o acesso a area de agendamento."}
+                  ? "Entre com e-mail e senha para seguir ao calendário."
+                  : "Cadastre nome, e-mail, telefone e senha para liberar o acesso à área de agendamento."}
               </p>
             </div>
 
