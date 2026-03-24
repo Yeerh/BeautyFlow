@@ -60,6 +60,18 @@ function BenefitBackCard({ data }: { data: BenefitFront }) {
 }
 
 export function Benefits() {
+  const premiumPlan = {
+    ...plans[0],
+    description:
+      "Plano premium para operacoes que querem vender com uma apresentacao profissional e suporte continuo.",
+    features: [
+      "Landing page premium com foco em conversao",
+      "Dashboard demonstrativo com faturamento e agendamentos",
+      "Fluxo de reservas com WhatsApp e calendario integrado",
+      "Suporte para operacao e ajustes do sistema",
+    ],
+  };
+
   return (
     <section id="beneficios" className="scroll-mt-28 px-6 py-16 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -84,69 +96,54 @@ export function Benefits() {
 
         <div className="mt-20">
           <SectionHeading
-            eyebrow="Planos"
-            title="Estrutura premium para diferentes momentos da operacao"
-            description="Os planos mantem a mesma base visual e tecnologica, com niveis diferentes de profundidade para crescimento e automacao."
+            eyebrow="Plano Premium"
+            title="Uma unica oferta para vender com mais clareza"
+            description="O plano premium concentra a landing page, a demonstracao do dashboard com faturamento e agendamentos e o suporte da operacao."
             align="center"
           />
 
-          <div className="mt-12 grid gap-5 lg:grid-cols-2">
-            {plans.map((plan) => (
-              <article
-                key={plan.name}
-                className={`rounded-[2rem] border p-8 shadow-[0_22px_70px_rgba(0,0,0,0.25)] transition-transform duration-300 hover:-translate-y-1 ${
-                  plan.name === "Plus"
-                    ? "border-[#00C896]/25 bg-[linear-gradient(180deg,rgba(0,200,150,0.08),rgba(255,255,255,0.04))]"
-                    : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))]"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#00C896]">
-                      {plan.name}
-                    </span>
-                    <p className="mt-5 text-4xl font-semibold tracking-tight text-white">
-                      {plan.price}
-                    </p>
-                    <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/45">
-                      por mes
-                    </p>
-                  </div>
-
-                  {plan.name === "Plus" ? (
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/68">
-                      Mais completo
-                    </span>
-                  ) : null}
+          <div className="mt-12 flex justify-center">
+            <article className="w-full max-w-3xl rounded-[2rem] border border-[#00C896]/25 bg-[linear-gradient(180deg,rgba(0,200,150,0.08),rgba(255,255,255,0.04))] p-8 shadow-[0_22px_70px_rgba(0,0,0,0.25)] transition-transform duration-300 hover:-translate-y-1">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="inline-flex rounded-full border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#00C896]">
+                    {premiumPlan.name}
+                  </span>
+                  <p className="mt-5 text-4xl font-semibold tracking-tight text-white">
+                    {premiumPlan.price}
+                  </p>
+                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/45">
+                    por mes
+                  </p>
                 </div>
 
-                <p className="mt-6 text-sm leading-7 text-white/68">
-                  {plan.description}
-                </p>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/68">
+                  Dashboard + suporte
+                </span>
+              </div>
 
-                <div className="mt-8 space-y-3">
-                  {plan.features.map((feature) => (
-                    <div
-                      key={feature}
-                      className="flex items-start gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#00C896]" />
-                      <span className="text-sm leading-6 text-white/72">{feature}</span>
-                    </div>
-                  ))}
-                </div>
+              <p className="mt-6 text-sm leading-7 text-white/68">
+                {premiumPlan.description}
+              </p>
 
-                <div className="mt-8">
-                  <ButtonLink
-                    href={contactLinks.serviceWhatsapp}
-                    external
-                    className="w-full"
+              <div className="mt-8 space-y-3">
+                {premiumPlan.features.map((feature) => (
+                  <div
+                    key={feature}
+                    className="flex items-start gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3"
                   >
-                    Quero este plano
-                  </ButtonLink>
-                </div>
-              </article>
-            ))}
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#00C896]" />
+                    <span className="text-sm leading-6 text-white/72">{feature}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8">
+                <ButtonLink href={contactLinks.serviceWhatsapp} external className="w-full">
+                  Quero o plano premium
+                </ButtonLink>
+              </div>
+            </article>
           </div>
         </div>
       </div>

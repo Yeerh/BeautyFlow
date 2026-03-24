@@ -57,7 +57,7 @@ export const adminLeads = [
   {
     name: "Bianca Lima",
     source: "WhatsApp",
-    intent: "Preciso saber valores do plano Plus para a minha operacao.",
+    intent: "Preciso saber valores do plano Premium para a minha operacao.",
   },
   {
     name: "Larissa Dias",
