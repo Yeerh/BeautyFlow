@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   AlertCircle,
   BadgeCheck,
@@ -56,6 +56,22 @@ type ServiceItem = {
   priceLabel: string;
   isActive: boolean;
   createdAt: string;
+};
+
+type MenuSection = {
+  id: string;
+  label: string;
+  detail: string;
+  icon: typeof LayoutPanelTop;
+};
+
+type ViaCepResponse = {
+  cep?: string;
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+  erro?: boolean;
 };
 
 const DASHBOARD_ERROR_MESSAGE =
@@ -195,6 +211,11 @@ export function AdminDashboardPage() {
   const [isSubmittingService, setIsSubmittingService] = useState(false);
   const [serviceActionError, setServiceActionError] = useState("");
   const [serviceActionSuccess, setServiceActionSuccess] = useState("");
+  const [profileZipCode, setProfileZipCode] = useState("");
+  const [zipLookupError, setZipLookupError] = useState("");
+  const [zipLookupSuccess, setZipLookupSuccess] = useState("");
+  const [isLookingUpZipCode, setIsLookingUpZipCode] = useState(false);
+  const [profileUploadError, setProfileUploadError] = useState("");
 
   async function loadBookings(authToken: string) {
     setIsLoadingBookings(true);
@@ -451,9 +472,163 @@ export function AdminDashboardPage() {
     );
   }, [activeBookings]);
 
+  const menuSections = useMemo<MenuSection[]>(
+    () =>
+      isSuperAdmin
+        ? [
+            {
+              id: "dashboard-overview",
+              label: "Painel global",
+              detail: "faturamento e metricas",
+              icon: LayoutPanelTop,
+            },
+            {
+              id: "admin-accounts",
+              label: "Administradores",
+              detail: "contas e acessos",
+              icon: ShieldCheck,
+            },
+            {
+              id: "system-bookings",
+              label: "Agendamentos",
+              detail: "reservas do sistema",
+              icon: BadgeCheck,
+            },
+          ]
+        : [
+            {
+              id: "dashboard-overview",
+              label: "Painel do estabelecimento",
+              detail: "faturamento e clientes do dia",
+              icon: CircleDollarSign,
+            },
+            {
+              id: "business-profile",
+              label: "Perfil",
+              detail: "foto, cep e endereco",
+              icon: Store,
+            },
+            {
+              id: "business-services",
+              label: "Servicos cadastrados",
+              detail: "catalogo e disponibilidade",
+              icon: BadgeCheck,
+            },
+          ],
+    [isSuperAdmin],
+  );
+  const [activeSection, setActiveSection] = useState<string>("dashboard-overview");
+
+  useEffect(() => {
+    setActiveSection(menuSections[0]?.id ?? "dashboard-overview");
+  }, [menuSections]);
+
   const handleLogout = () => {
     logout();
     window.location.assign("/admin-acesso");
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    setActiveSection(sectionId);
+
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const handleBusinessPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setProfileUploadError("Selecione apenas arquivos de imagem.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileUploadError("Use uma imagem de ate 2MB para a foto do local.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+
+      if (!result) {
+        setProfileUploadError("Nao foi possivel carregar a imagem selecionada.");
+        return;
+      }
+
+      setProfileForm((current) => ({
+        ...current,
+        businessPhotoUrl: result,
+      }));
+      setProfileUploadError("");
+    };
+
+    reader.onerror = () => {
+      setProfileUploadError("Nao foi possivel carregar a imagem selecionada.");
+    };
+
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  const handleZipLookup = async () => {
+    const normalizedZipCode = profileZipCode.replace(/\D/g, "");
+
+    if (normalizedZipCode.length !== 8) {
+      setZipLookupError("Informe um CEP valido com 8 digitos.");
+      setZipLookupSuccess("");
+      return;
+    }
+
+    setIsLookingUpZipCode(true);
+    setZipLookupError("");
+    setZipLookupSuccess("");
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${normalizedZipCode}/json/`);
+      const data = (await response.json().catch(() => ({}))) as ViaCepResponse;
+
+      if (!response.ok || data.erro) {
+        throw new Error("CEP nao encontrado.");
+      }
+
+      const addressParts = [
+        data.logradouro?.trim(),
+        data.bairro?.trim(),
+        [data.localidade?.trim(), data.uf?.trim()].filter(Boolean).join(" - "),
+      ].filter(Boolean);
+
+      setProfileForm((current) => ({
+        ...current,
+        businessAddress: addressParts.join(" - "),
+      }));
+      setZipLookupSuccess(
+        [data.localidade?.trim(), data.uf?.trim()].filter(Boolean).join(" / ") ||
+          "Endereco encontrado.",
+      );
+    } catch (error) {
+      setZipLookupError(
+        getReadableDashboardError(error, "Nao foi possivel consultar o CEP agora."),
+      );
+    } finally {
+      setIsLookingUpZipCode(false);
+    }
   };
 
   const resetAdminForm = () => {
@@ -743,38 +918,102 @@ export function AdminDashboardPage() {
         </>
       }
     >
-      <div className="grid gap-5 lg:grid-cols-4">
-        {metrics.map((metric, index) => {
-          const Icon = metricIcons[index];
+      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="xl:sticky xl:top-28 xl:self-start">
+          <nav className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#F8C8DC]">
+              Navegacao
+            </p>
+            <p className="mt-3 text-sm leading-6 text-white/55">
+              Menu adaptado ao perfil logado.
+            </p>
 
-          return (
-            <article
-              key={metric.label}
-              className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
-            >
-              <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
-                <Icon className="h-5 w-5" />
+            <div className="mt-6 space-y-3">
+              {menuSections.map((section) => {
+                const Icon = section.icon;
+                const isActive = activeSection === section.id;
+
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => scrollToSection(section.id)}
+                    className={`w-full rounded-[1.5rem] border px-4 py-4 text-left transition-all duration-300 ${
+                      isActive
+                        ? "border-[#00C896]/30 bg-[#00C896]/12 text-white"
+                        : "border-white/8 bg-black/20 text-white/72 hover:border-white/15 hover:text-white"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3 text-sm font-semibold">
+                      <Icon className={`h-4 w-4 ${isActive ? "text-[#00C896]" : "text-[#F8C8DC]"}`} />
+                      {section.label}
+                    </span>
+                    <span className="mt-2 block text-xs uppercase tracking-[0.16em] text-white/42">
+                      {section.detail}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        </aside>
+
+        <div className="space-y-6">
+          <section id="dashboard-overview" className="space-y-6 scroll-mt-28">
+            <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+              <div className="flex items-center gap-3">
+                <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
+                  <LayoutPanelTop className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-white">
+                    {isSuperAdmin ? "Painel global" : "Painel do estabelecimento"}
+                  </h2>
+                  <p className="text-sm text-white/58">
+                    {isSuperAdmin
+                      ? "Resumo financeiro e operacional de todas as contas do sistema."
+                      : "Resumo financeiro do dia e acompanhamento rapido dos clientes agendados."}
+                  </p>
+                </div>
               </div>
-              <p className="mt-5 text-sm text-white/60">{metric.label}</p>
-              <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
-                {metric.value}
-              </p>
-              <p className="mt-3 text-sm leading-6 text-white/55">{metric.detail}</p>
-            </article>
-          );
-        })}
-      </div>
+            </div>
 
-      {bookingsError ? (
-        <div className="mt-6 flex items-start gap-3 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          {bookingsError}
-        </div>
-      ) : null}
+            <div className="grid gap-5 lg:grid-cols-4">
+              {metrics.map((metric, index) => {
+                const Icon = metricIcons[index];
 
-      {isSuperAdmin ? (
-        <div className="mt-8 space-y-6">
-          <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+                return (
+                  <article
+                    key={metric.label}
+                    className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
+                  >
+                    <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <p className="mt-5 text-sm text-white/60">{metric.label}</p>
+                    <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
+                      {metric.value}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-white/55">{metric.detail}</p>
+                  </article>
+                );
+              })}
+            </div>
+
+            {bookingsError ? (
+              <div className="flex items-start gap-3 rounded-[1.5rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {bookingsError}
+              </div>
+            ) : null}
+          </section>
+
+          {isSuperAdmin ? (
+            <div className="space-y-6">
+          <section
+            id="admin-accounts"
+            className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
+          >
             <div className="flex items-center gap-3">
               <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
                 <LayoutPanelTop className="h-5 w-5" />
@@ -815,7 +1054,10 @@ export function AdminDashboardPage() {
             </div>
           </section>
 
-          <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+          <section
+            id="system-bookings"
+            className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
+          >
             <div className="flex items-center gap-3">
               <div className="inline-flex rounded-2xl border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 p-3 text-[#F8C8DC]">
                 <ShieldCheck className="h-5 w-5" />
@@ -1127,7 +1369,10 @@ export function AdminDashboardPage() {
       ) : (
         <div className="mt-8 space-y-6">
           <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-            <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+            <section
+              id="business-profile"
+              className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
+            >
               <div className="flex items-center gap-3">
                 <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
                   <Store className="h-5 w-5" />
@@ -1140,7 +1385,7 @@ export function AdminDashboardPage() {
                 </div>
               </div>
 
-              {(profileError || profileSuccess) ? (
+              {(profileError || profileSuccess || zipLookupError || zipLookupSuccess || profileUploadError) ? (
                 <div className="mt-6 space-y-3">
                   {profileError ? (
                     <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
@@ -1150,6 +1395,21 @@ export function AdminDashboardPage() {
                   {profileSuccess ? (
                     <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
                       {profileSuccess}
+                    </div>
+                  ) : null}
+                  {zipLookupError ? (
+                    <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+                      {zipLookupError}
+                    </div>
+                  ) : null}
+                  {zipLookupSuccess ? (
+                    <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
+                      CEP localizado: {zipLookupSuccess}
+                    </div>
+                  ) : null}
+                  {profileUploadError ? (
+                    <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+                      {profileUploadError}
                     </div>
                   ) : null}
                 </div>
@@ -1162,12 +1422,83 @@ export function AdminDashboardPage() {
                 </div>
               ) : (
                 <form onSubmit={handleProfileSubmit} className="mt-6 space-y-4">
+                  <div className="rounded-[1.5rem] border border-white/8 bg-black/20 p-4">
+                    <span className="text-sm text-white/60">Foto do local</span>
+                    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <div className="h-28 w-28 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.04]">
+                        {profileForm.businessPhotoUrl ? (
+                          <img
+                            src={profileForm.businessPhotoUrl}
+                            alt={profileForm.businessName || "Foto do local"}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm text-white/45">
+                            Sem foto
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 space-y-3">
+                        <label className="inline-flex cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/78 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]">
+                          Upload da foto
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={handleBusinessPhotoUpload}
+                          />
+                        </label>
+
+                        {profileForm.businessPhotoUrl ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProfileForm((current) => ({
+                                ...current,
+                                businessPhotoUrl: "",
+                              }))
+                            }
+                            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/20 px-5 py-3 text-sm font-semibold text-white/72 transition-all duration-300 hover:border-[#ef4444]/35 hover:text-[#fecaca]"
+                          >
+                            Remover foto
+                          </button>
+                        ) : null}
+
+                        <p className="text-xs leading-6 text-white/42">
+                          Imagem em JPG, PNG ou WebP com ate 2MB.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[0.68fr_0.32fr]">
+                    <label className="space-y-2">
+                      <span className="text-sm text-white/60">Buscar CEP</span>
+                      <input
+                        value={profileZipCode}
+                        onChange={(event) => setProfileZipCode(event.target.value)}
+                        className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
+                        placeholder="00000-000"
+                        inputMode="numeric"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleZipLookup()}
+                      disabled={isLookingUpZipCode}
+                      className="mt-7 inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/78 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896]"
+                    >
+                      {isLookingUpZipCode ? "Buscando CEP..." : "Buscar CEP"}
+                    </button>
+                  </div>
+
                   {[
                     { key: "businessName", label: "Nome do estabelecimento", type: "text" },
                     { key: "name", label: "Nome do proprietario", type: "text" },
                     { key: "phone", label: "Telefone", type: "tel" },
-                    { key: "businessPhotoUrl", label: "Foto do local", type: "url" },
-                    { key: "businessAddress", label: "Endereco", type: "text" },
+                    { key: "businessAddress", label: "Endereco / local", type: "text" },
                   ].map((field) => (
                     <label key={field.key} className="space-y-2">
                       <span className="text-sm text-white/60">{field.label}</span>
@@ -1181,7 +1512,7 @@ export function AdminDashboardPage() {
                         }
                         className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 placeholder:text-white/28 focus:border-[#00C896]/35"
                         type={field.type}
-                        required={field.key !== "businessPhotoUrl"}
+                        required
                       />
                     </label>
                   ))}
@@ -1246,7 +1577,10 @@ export function AdminDashboardPage() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+            <section
+              id="business-services"
+              className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7"
+            >
               <div className="flex items-center gap-3">
                 <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
                   <BadgeCheck className="h-5 w-5" />
@@ -1524,6 +1858,8 @@ export function AdminDashboardPage() {
           </section>
         </div>
       )}
+        </div>
+      </div>
     </PortalShell>
   );
 }
