@@ -189,15 +189,23 @@ export function SidebarLink({
   link: SidebarItem;
   className?: string;
 }) {
+  const { setOpen } = useSidebar();
   const baseClassName = cn(
-    "group/sidebar flex items-center gap-3 rounded-[1.2rem] border border-transparent px-3 py-3 transition-all duration-200",
+    "group/sidebar flex w-full items-center gap-3 rounded-[1.2rem] border border-transparent px-3 py-3 text-left transition-all duration-200",
     "text-white/74 hover:border-white/10 hover:bg-white/[0.06] hover:text-white",
     className,
   );
 
   if (link.onClick) {
     return (
-      <button type="button" onClick={link.onClick} className={baseClassName}>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(false);
+          link.onClick?.();
+        }}
+        className={baseClassName}
+      >
         <span className="flex h-5 w-5 items-center justify-center">{link.icon}</span>
         <SidebarLabel>{link.label}</SidebarLabel>
       </button>
@@ -207,6 +215,7 @@ export function SidebarLink({
   return (
     <NavLink
       to={link.href || "/"}
+      onClick={() => setOpen(false)}
       className={({ isActive }) =>
         cn(
           baseClassName,

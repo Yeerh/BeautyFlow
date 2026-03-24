@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { signAuthToken } from "../auth/jwt.js";
+import { getAuthenticatedUser } from "../auth/session.js";
 import { ensureSuperAdminUser, normalizeUsername } from "../auth/super-admin.js";
 import prisma from "../prisma/client.js";
 
@@ -156,6 +157,66 @@ router.post("/login", async (req, res, next) => {
     res.json({
       token,
       user: sanitizeUser(user),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/profile", async (req, res, next) => {
+  try {
+    const currentUser = await getAuthenticatedUser(req);
+
+    if (!currentUser) {
+      res.status(401).json({
+        message: "Sessão inválida. Entre novamente para continuar.",
+      });
+      return;
+    }
+
+    if (String(currentUser.role ?? "CLIENT") !== "CLIENT") {
+      res.status(403).json({
+        message: "Somente clientes podem editar este perfil.",
+      });
+      return;
+    }
+
+    const { name, phone, businessPhotoUrl } = req.body ?? {};
+
+    if (
+      typeof name !== "string" ||
+      typeof phone !== "string" ||
+      typeof businessPhotoUrl !== "string"
+    ) {
+      res.status(400).json({
+        message: "Informe nome, telefone e foto de perfil corretamente.",
+      });
+      return;
+    }
+
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedProfilePhoto = businessPhotoUrl.trim();
+
+    if (trimmedName.length < 2 || trimmedPhone.length < 8) {
+      res.status(400).json({
+        message: "Preencha nome e telefone com dados válidos.",
+      });
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: currentUser.id },
+      data: {
+        name: trimmedName,
+        phone: trimmedPhone,
+        businessPhotoUrl: trimmedProfilePhoto || null,
+      },
+    });
+
+    res.json({
+      token: signAuthToken(updatedUser),
+      user: sanitizeUser(updatedUser),
     });
   } catch (error) {
     next(error);

@@ -442,6 +442,7 @@ export function ClientBookingPage() {
       menuItems={menuItems}
       userName={customerName}
       userSubtitle={customerEmail || "Área do cliente"}
+      userImageUrl={user?.businessPhotoUrl || null}
       actions={
         <>
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">

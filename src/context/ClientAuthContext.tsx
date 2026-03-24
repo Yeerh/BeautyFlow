@@ -36,6 +36,11 @@ type ClientAuthContextValue = {
     phone: string;
     password: string;
   }) => Promise<AuthUser>;
+  updateProfile: (input: {
+    name: string;
+    phone: string;
+    businessPhotoUrl: string;
+  }) => Promise<AuthUser>;
   logout: () => void;
 };
 
@@ -254,6 +259,43 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     throw lastError ?? new Error("Nao foi possivel autenticar a conta.");
   }
 
+  async function updateProfile(input: {
+    name: string;
+    phone: string;
+    businessPhotoUrl: string;
+  }) {
+    if (!token) {
+      throw new Error("Sua sessão expirou. Entre novamente para continuar.");
+    }
+
+    const response = await fetch(buildApiUrl("/api/auth/profile"), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: input.name.trim(),
+        phone: input.phone.trim(),
+        businessPhotoUrl: input.businessPhotoUrl.trim(),
+      }),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as {
+      token?: string;
+      user?: AuthUser;
+      message?: string;
+    };
+
+    if (!response.ok || !data.token || !data.user) {
+      throw new Error(data.message || "Nao foi possivel atualizar o perfil.");
+    }
+
+    const authenticatedUser = normalizeClientUser(data.user);
+    persistSession(data.token, authenticatedUser);
+    return authenticatedUser;
+  }
+
   const value = useMemo<ClientAuthContextValue>(
     () => ({
       user,
@@ -276,6 +318,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
           phone: phone.trim(),
           password,
         }),
+      updateProfile,
       logout: () => {
         clearSession();
       },
