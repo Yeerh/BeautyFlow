@@ -17,20 +17,187 @@ import { contactLinks } from "@/data/landingContent";
 import { adminRoutes } from "@/lib/portalNavigation";
 import { cn } from "@/lib/utils";
 
-type AuthMode = "login" | "register";
+type AuthContent = {
+  image: {
+    src: string;
+    alt: string;
+  };
+  quote: {
+    text: string;
+    author: string;
+  };
+};
+
+const signInContent: AuthContent = {
+  image: {
+    src: "/woman-getting-treatment-hairdresser-shop.jpg",
+    alt: "Acesso BeautyFlow",
+  },
+  quote: {
+    text: "Entre e continue sua agenda com um fluxo simples e direto.",
+    author: "BeautyFlow",
+  },
+};
+
+const signUpContent: AuthContent = {
+  image: {
+    src: "/female-model-demonstrating-silber-bracelet.jpg",
+    alt: "Cadastro BeautyFlow",
+  },
+  quote: {
+    text: "Crie sua conta e deixe seus proximos agendamentos mais organizados.",
+    author: "BeautyFlow",
+  },
+};
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input
       type={type}
-      data-slot="input"
       className={cn(
-        "flex h-11 w-full min-w-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-all duration-300 placeholder:text-white/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-        "focus:border-[#00C896]/35 focus:bg-white/10 focus:ring-0",
+        "flex h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white shadow-sm shadow-black/5 outline-none transition-all duration-300 placeholder:text-white/32",
+        "focus:border-[#00C896]/35 focus:bg-white/[0.07]",
+        "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
     />
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label htmlFor={htmlFor} className="grid gap-2.5">
+      <span className="text-sm font-medium text-white/70">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  placeholder,
+  autoComplete,
+  showPassword,
+  onToggle,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  placeholder: string;
+  autoComplete: string;
+  showPassword: boolean;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field label={label} htmlFor={id}>
+      <div className="relative">
+        <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+        <Input
+          id={id}
+          type={showPassword ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="pl-11 pr-12"
+          required
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 transition-colors duration-300 hover:text-white"
+          aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+        >
+          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </Field>
+  );
+}
+
+type TypewriterProps = {
+  text: string | string[];
+  speed?: number;
+  cursor?: string;
+  loop?: boolean;
+  deleteSpeed?: number;
+  delay?: number;
+  className?: string;
+};
+
+function Typewriter({
+  text,
+  speed = 100,
+  cursor = "|",
+  loop = false,
+  deleteSpeed = 50,
+  delay = 1500,
+  className,
+}: TypewriterProps) {
+  const [displayText, setDisplayText] = useState("");
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [textArrayIndex, setTextArrayIndex] = useState(0);
+
+  const textArray = Array.isArray(text) ? text : [text];
+  const currentText = textArray[textArrayIndex] || "";
+
+  useEffect(() => {
+    if (!currentText) {
+      return;
+    }
+
+    const timeout = window.setTimeout(
+      () => {
+        if (!isDeleting) {
+          if (currentIndex < currentText.length) {
+            setDisplayText((prev) => prev + currentText[currentIndex]);
+            setCurrentIndex((prev) => prev + 1);
+          } else if (loop) {
+            window.setTimeout(() => setIsDeleting(true), delay);
+          }
+        } else if (displayText.length > 0) {
+          setDisplayText((prev) => prev.slice(0, -1));
+        } else {
+          setIsDeleting(false);
+          setCurrentIndex(0);
+          setTextArrayIndex((prev) => (prev + 1) % textArray.length);
+        }
+      },
+      isDeleting ? deleteSpeed : speed,
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    currentIndex,
+    currentText,
+    delay,
+    deleteSpeed,
+    displayText,
+    isDeleting,
+    loop,
+    speed,
+    textArray.length,
+  ]);
+
+  return (
+    <span className={className}>
+      {displayText}
+      <span className="animate-pulse">{cursor}</span>
+    </span>
   );
 }
 
@@ -57,10 +224,250 @@ function resolvePostAuthRedirect(role: AuthRole, requestedPath: string) {
   return role === "super_admin" ? adminRoutes.dashboard : adminRoutes.panel;
 }
 
+function SignInForm({
+  isSubmitting,
+  error,
+  loginForm,
+  showPassword,
+  onPasswordToggle,
+  onSubmit,
+  onIdentifierChange,
+  onPasswordChange,
+}: {
+  isSubmitting: boolean;
+  error: string;
+  loginForm: { identifier: string; password: string };
+  showPassword: boolean;
+  onPasswordToggle: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onIdentifierChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-white">Entrar na conta</h1>
+        <p className="max-w-sm text-sm leading-6 text-white/58">
+          Use e-mail ou usuario para fazer login.
+        </p>
+      </div>
+
+      <div className="grid gap-5">
+        <Field label="E-mail ou usuario" htmlFor="identifier">
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <Input
+              id="identifier"
+              name="identifier"
+              value={loginForm.identifier}
+              onChange={(event) => onIdentifierChange(event.target.value)}
+              placeholder="voce@email.com ou usuario"
+              autoComplete="username"
+              className="pl-11"
+              required
+            />
+          </div>
+        </Field>
+
+        <PasswordField
+          id="login-password"
+          label="Senha"
+          value={loginForm.password}
+          placeholder="Digite sua senha"
+          autoComplete="current-password"
+          showPassword={showPassword}
+          onToggle={onPasswordToggle}
+          onChange={onPasswordChange}
+        />
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="mt-1 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-black transition-all duration-300 hover:bg-white/92 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isSubmitting ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/60 border-t-transparent" />
+          ) : (
+            <ArrowRight className="h-4 w-4" />
+          )}
+          {isSubmitting ? "Entrando..." : "Entrar"}
+        </button>
+
+        {error ? (
+          <div className="rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+            {error}
+          </div>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
+function SignUpForm({
+  isSubmitting,
+  error,
+  registerForm,
+  showPassword,
+  onPasswordToggle,
+  onSubmit,
+  onChange,
+}: {
+  isSubmitting: boolean;
+  error: string;
+  registerForm: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    confirmPassword: string;
+  };
+  showPassword: boolean;
+  onPasswordToggle: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onChange: (field: keyof typeof registerForm, value: string) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-white">Criar conta</h1>
+        <p className="max-w-sm text-sm leading-6 text-white/58">
+          Preencha seus dados para liberar o acesso.
+        </p>
+      </div>
+
+      <div className="grid gap-5">
+        <Field label="Nome completo" htmlFor="name">
+          <div className="relative">
+            <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <Input
+              id="name"
+              name="name"
+              value={registerForm.name}
+              onChange={(event) => onChange("name", event.target.value)}
+              placeholder="Seu nome completo"
+              autoComplete="name"
+              className="pl-11"
+              required
+            />
+          </div>
+        </Field>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="E-mail" htmlFor="register-email">
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+              <Input
+                id="register-email"
+                name="email"
+                type="email"
+                value={registerForm.email}
+                onChange={(event) => onChange("email", event.target.value)}
+                placeholder="voce@email.com"
+                autoComplete="email"
+                className="pl-11"
+                required
+              />
+            </div>
+          </Field>
+
+          <Field label="Telefone" htmlFor="phone">
+            <div className="relative">
+              <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={registerForm.phone}
+                onChange={(event) => onChange("phone", event.target.value)}
+                placeholder="(81) 99999-9999"
+                autoComplete="tel"
+                className="pl-11"
+                required
+              />
+            </div>
+          </Field>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <PasswordField
+            id="register-password"
+            label="Senha"
+            value={registerForm.password}
+            placeholder="Crie uma senha"
+            autoComplete="new-password"
+            showPassword={showPassword}
+            onToggle={onPasswordToggle}
+            onChange={(value) => onChange("password", value)}
+          />
+
+          <PasswordField
+            id="register-confirm-password"
+            label="Confirmar senha"
+            value={registerForm.confirmPassword}
+            placeholder="Repita a senha"
+            autoComplete="new-password"
+            showPassword={showPassword}
+            onToggle={onPasswordToggle}
+            onChange={(value) => onChange("confirmPassword", value)}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="mt-1 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-black transition-all duration-300 hover:bg-white/92 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isSubmitting ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/60 border-t-transparent" />
+          ) : (
+            <ArrowRight className="h-4 w-4" />
+          )}
+          {isSubmitting ? "Criando conta..." : "Criar conta"}
+        </button>
+
+        {error ? (
+          <div className="rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+            {error}
+          </div>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
+function AuthFormContainer({
+  isSignIn,
+  onToggle,
+  children,
+}: {
+  isSignIn: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mx-auto grid w-full max-w-[460px] gap-5">
+      <div className="rounded-[2rem] border border-white/10 bg-black/45 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:p-8">
+        {children}
+      </div>
+
+      <div className="text-center text-sm text-white/60">
+        {isSignIn ? "Ainda nao tem conta?" : "Ja tem uma conta?"}{" "}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="font-semibold text-white transition-colors duration-300 hover:text-[#00C896]"
+        >
+          {isSignIn ? "Criar conta" : "Entrar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Component() {
   const location = useLocation();
   const { isAuthenticated, login, registerWithEmail, user } = useClientAuth();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [isSignIn, setIsSignIn] = useState(true);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -76,6 +483,8 @@ export function Component() {
     password: "",
     confirmPassword: "",
   });
+
+  const currentContent = isSignIn ? signInContent : signUpContent;
 
   const redirectTo = useMemo(() => {
     if (
@@ -102,12 +511,12 @@ export function Component() {
     return <Navigate to={resolvePostAuthRedirect(user.role, redirectTo)} replace />;
   }
 
-  const handleModeChange = (nextMode: AuthMode) => {
-    setMode(nextMode);
+  const handleToggle = () => {
+    setIsSignIn((prev) => !prev);
     setError("");
   };
 
-  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setIsSubmitting(true);
@@ -124,7 +533,7 @@ export function Component() {
     }
   };
 
-  const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSignUp = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
@@ -153,316 +562,125 @@ export function Component() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-10 text-white">
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,200,150,0.22),rgba(9,14,14,0.62),rgba(0,0,0,1))]" />
-      <div className="absolute left-1/2 top-0 h-[32rem] w-[70rem] -translate-x-1/2 rounded-b-[50%] bg-[#00C896]/14 blur-[110px]" />
-      <div className="absolute bottom-[-10rem] right-[-4rem] h-96 w-96 rounded-full bg-[#F8C8DC]/10 blur-[120px]" />
-      <div className="absolute left-[-4rem] top-1/3 h-80 w-80 rounded-full bg-white/6 blur-[120px]" />
+    <div className="w-full min-h-screen bg-[#05070B] text-white md:grid md:grid-cols-[minmax(0,520px)_1fr]">
+      <style>{`
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+          display: none;
+        }
+      `}</style>
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
-      >
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/45 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.42)] backdrop-blur-2xl sm:p-8">
-          <div className="absolute inset-0 opacity-[0.04]">
-            <div
-              className="h-full w-full"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg, white 0.5px, transparent 0.5px), linear-gradient(45deg, white 0.5px, transparent 0.5px)",
-                backgroundSize: "24px 24px",
-              }}
-            />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-8 sm:px-8 md:px-10 md:py-12">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,200,150,0.15),transparent_42%),linear-gradient(180deg,#080b10,#05070B)]" />
+        <div className="absolute left-[-5rem] top-[15%] h-72 w-72 rounded-full bg-[#00C896]/10 blur-[110px]" />
+        <div className="absolute bottom-[-5rem] right-[-3rem] h-80 w-80 rounded-full bg-white/6 blur-[120px]" />
+
+        <div className="relative z-10 w-full">
+          <div className="mx-auto mb-8 flex w-full max-w-[460px] items-center justify-between gap-4">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/72 transition-colors duration-300 hover:border-[#00C896]/35 hover:text-[#00C896]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Link>
+
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
+              <Sparkles className="h-3.5 w-3.5 text-[#00C896]" />
+              BeautyFlow
+            </span>
           </div>
 
-          <div className="relative">
-            <div className="flex items-center justify-between gap-4">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/72 transition-colors duration-300 hover:border-[#00C896]/35 hover:text-[#00C896]"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Voltar
-              </Link>
-
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/72">
-                <Sparkles className="h-3.5 w-3.5 text-[#00C896]" />
-                BeautyFlow
-              </span>
-            </div>
-
-            <div className="mt-8 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base font-semibold text-white">
-                BF
-              </div>
-              <h1 className="mt-4 text-3xl font-semibold text-white">
-                {mode === "login" ? "Entrar" : "Criar conta"}
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-white/58">
-                {mode === "login"
-                  ? "Use e-mail ou usuario e sua senha para continuar."
-                  : "Cadastre nome, e-mail, telefone e senha para liberar o acesso."}
-              </p>
-            </div>
-
-            <div className="mt-6 flex rounded-full border border-white/10 bg-white/[0.03] p-1">
-              <button
-                type="button"
-                onClick={() => handleModeChange("login")}
-                className={`flex-1 rounded-full px-4 py-3 text-sm font-semibold transition-all duration-300 ${
-                  mode === "login"
-                    ? "bg-white text-black"
-                    : "text-white/60 hover:text-white"
-                }`}
-              >
-                Entrar
-              </button>
-              <button
-                type="button"
-                onClick={() => handleModeChange("register")}
-                className={`flex-1 rounded-full px-4 py-3 text-sm font-semibold transition-all duration-300 ${
-                  mode === "register"
-                    ? "bg-white text-black"
-                    : "text-white/60 hover:text-white"
-                }`}
-              >
-                Criar conta
-              </button>
-            </div>
-
+          <AuthFormContainer isSignIn={isSignIn} onToggle={handleToggle}>
             <AnimatePresence mode="wait">
-              {mode === "login" ? (
-                <motion.form
-                  key="login"
+              {isSignIn ? (
+                <motion.div
+                  key="sign-in"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  onSubmit={handleLoginSubmit}
-                  className="mt-6 space-y-4"
                 >
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/58">E-mail ou usuario</span>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                      <Input
-                        value={loginForm.identifier}
-                        onChange={(event) =>
-                          setLoginForm((current) => ({
-                            ...current,
-                            identifier: event.target.value,
-                          }))
-                        }
-                        placeholder="voce@email.com ou usuario"
-                        autoComplete="username"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/58">Senha</span>
-                    <div className="relative">
-                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                      <Input
-                        value={loginForm.password}
-                        onChange={(event) =>
-                          setLoginForm((current) => ({
-                            ...current,
-                            password: event.target.value,
-                          }))
-                        }
-                        type={showLoginPassword ? "text" : "password"}
-                        placeholder="Digite sua senha"
-                        autoComplete="current-password"
-                        className="pl-10 pr-11"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowLoginPassword((current) => !current)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white"
-                        aria-label={showLoginPassword ? "Ocultar senha" : "Mostrar senha"}
-                      >
-                        {showLoginPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </label>
-
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-semibold text-black transition-all duration-300 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {isSubmitting ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/60 border-t-transparent" />
-                    ) : (
-                      <ArrowRight className="h-4 w-4" />
-                    )}
-                    {isSubmitting ? "Entrando..." : "Entrar"}
-                  </motion.button>
-                </motion.form>
+                  <SignInForm
+                    isSubmitting={isSubmitting}
+                    error={error}
+                    loginForm={loginForm}
+                    showPassword={showLoginPassword}
+                    onPasswordToggle={() => setShowLoginPassword((prev) => !prev)}
+                    onSubmit={handleSignIn}
+                    onIdentifierChange={(value) =>
+                      setLoginForm((current) => ({
+                        ...current,
+                        identifier: value,
+                      }))
+                    }
+                    onPasswordChange={(value) =>
+                      setLoginForm((current) => ({
+                        ...current,
+                        password: value,
+                      }))
+                    }
+                  />
+                </motion.div>
               ) : (
-                <motion.form
-                  key="register"
+                <motion.div
+                  key="sign-up"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  onSubmit={handleRegisterSubmit}
-                  className="mt-6 space-y-4"
                 >
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/58">Nome</span>
-                    <div className="relative">
-                      <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                      <Input
-                        value={registerForm.name}
-                        onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            name: event.target.value,
-                          }))
-                        }
-                        placeholder="Seu nome completo"
-                        autoComplete="name"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/58">E-mail</span>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                      <Input
-                        value={registerForm.email}
-                        onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            email: event.target.value,
-                          }))
-                        }
-                        type="email"
-                        placeholder="voce@email.com"
-                        autoComplete="email"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/58">Telefone</span>
-                    <div className="relative">
-                      <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                      <Input
-                        value={registerForm.phone}
-                        onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            phone: event.target.value,
-                          }))
-                        }
-                        type="tel"
-                        placeholder="(81) 99999-9999"
-                        autoComplete="tel"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/58">Senha</span>
-                    <div className="relative">
-                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                      <Input
-                        value={registerForm.password}
-                        onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            password: event.target.value,
-                          }))
-                        }
-                        type={showRegisterPassword ? "text" : "password"}
-                        placeholder="Crie uma senha"
-                        autoComplete="new-password"
-                        className="pl-10 pr-11"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegisterPassword((current) => !current)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white"
-                        aria-label={showRegisterPassword ? "Ocultar senha" : "Mostrar senha"}
-                      >
-                        {showRegisterPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm text-white/58">Confirmar senha</span>
-                    <div className="relative">
-                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                      <Input
-                        value={registerForm.confirmPassword}
-                        onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            confirmPassword: event.target.value,
-                          }))
-                        }
-                        type={showRegisterPassword ? "text" : "password"}
-                        placeholder="Repita a senha"
-                        autoComplete="new-password"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </label>
-
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-semibold text-black transition-all duration-300 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {isSubmitting ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/60 border-t-transparent" />
-                    ) : (
-                      <ArrowRight className="h-4 w-4" />
-                    )}
-                    {isSubmitting ? "Criando conta..." : "Criar conta"}
-                  </motion.button>
-                </motion.form>
+                  <SignUpForm
+                    isSubmitting={isSubmitting}
+                    error={error}
+                    registerForm={registerForm}
+                    showPassword={showRegisterPassword}
+                    onPasswordToggle={() => setShowRegisterPassword((prev) => !prev)}
+                    onSubmit={handleSignUp}
+                    onChange={(field, value) =>
+                      setRegisterForm((current) => ({
+                        ...current,
+                        [field]: value,
+                      }))
+                    }
+                  />
+                </motion.div>
               )}
             </AnimatePresence>
-
-            {error ? (
-              <div className="mt-4 rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
-                {error}
-              </div>
-            ) : null}
-          </div>
+          </AuthFormContainer>
         </div>
-      </motion.div>
+      </div>
+
+      <div
+        className="relative hidden min-h-screen overflow-hidden bg-cover bg-center md:block"
+        style={{ backgroundImage: `url(${currentContent.image.src})` }}
+        key={currentContent.image.src}
+      >
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,7,11,0.12),rgba(5,7,11,0.32),rgba(5,7,11,0.94))]" />
+        <div className="absolute inset-x-0 bottom-0 h-[180px] bg-gradient-to-t from-[#05070B] to-transparent" />
+
+        <div className="relative z-10 flex h-full flex-col justify-between p-10 lg:p-14">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/72 backdrop-blur-xl">
+            Portal BeautyFlow
+          </div>
+
+          <blockquote className="max-w-xl space-y-4 text-white">
+            <p className="text-3xl font-semibold leading-tight lg:text-4xl">
+              “
+              <Typewriter
+                key={currentContent.quote.text}
+                text={currentContent.quote.text}
+                speed={45}
+                className="inline"
+              />
+              ”
+            </p>
+            <cite className="block text-sm font-medium not-italic text-white/68">
+              {currentContent.quote.author}
+            </cite>
+          </blockquote>
+        </div>
+      </div>
     </div>
   );
 }
