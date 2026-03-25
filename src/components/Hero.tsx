@@ -8,7 +8,7 @@ import { contactLinks } from "@/data/landingContent";
 const heroNavLinks = [
   { label: "INICIO", href: "#inicio" },
   { label: "SERVICOS", href: "#servicos" },
-  { label: "SOBRE", href: "#sobre" },
+  { label: "SOBRE", href: contactLinks.aboutPlatform },
   { label: "LOCAIS", href: "#locais" },
   { label: "PLANOS", href: "#beneficios" },
 ] as const;

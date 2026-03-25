@@ -1,6 +1,5 @@
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
-import { AboutApp } from "@/components/AboutApp";
 import { Benefits } from "@/components/Benefits";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
@@ -48,7 +47,6 @@ export function LandingPage() {
         <Hero />
         <SocialProof />
         <Services />
-        <AboutApp />
         <Benefits />
         <HowItWorks />
         <Testimonials />

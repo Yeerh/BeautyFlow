@@ -1,12 +1,13 @@
 export const navLinks = [
   { label: "Início", href: "#inicio" },
   { label: "Serviços", href: "#servicos" },
-  { label: "Sobre", href: "#sobre" },
+  { label: "Sobre", href: "/sobre-plataforma" },
 ] as const;
 
 export const contactLinks = {
   schedule: "/barbearias",
   publicBarbershops: "/barbearias",
+  aboutPlatform: "/sobre-plataforma",
   whatsapp:
     "https://wa.me/5511999990000?text=Olá,%20quero%20agendar%20um%20atendimento%20pela%20BeautyFlow.",
   serviceWhatsapp:
