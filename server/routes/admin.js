@@ -56,9 +56,24 @@ function sanitizeService(service) {
 }
 
 async function resolveAdminTargetId(currentUser, queryAdminId) {
-  if (userHasRole(currentUser, ["SUPER_ADMIN"]) && queryAdminId) {
-    const parsedAdminId = Number(queryAdminId);
-    return Number.isFinite(parsedAdminId) ? parsedAdminId : null;
+  if (userHasRole(currentUser, ["SUPER_ADMIN"])) {
+    const parsedAdminId = parseInteger(queryAdminId);
+
+    if (!parsedAdminId) {
+      return null;
+    }
+
+    const targetAdmin = await prisma.user.findFirst({
+      where: {
+        id: parsedAdminId,
+        role: "ADMIN",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return targetAdmin?.id ?? null;
   }
 
   return currentUser.id;
@@ -555,23 +570,25 @@ router.get("/services", async (req, res, next) => {
 
 router.post("/services", async (req, res, next) => {
   try {
-    if (!userHasRole(req.currentUser, ["ADMIN"])) {
+    if (!userHasRole(req.currentUser, ["ADMIN", "SUPER_ADMIN"])) {
       res.status(403).json({
-        message: "Somente administradores podem cadastrar serviços.",
+        message: "Somente administradores e super admin podem cadastrar serviços.",
       });
       return;
     }
 
-    const { name, description, priceCents } = req.body ?? {};
+    const { adminId, name, description, priceCents } = req.body ?? {};
     const parsedPriceCents = parseInteger(priceCents);
+    const targetAdminId = await resolveAdminTargetId(req.currentUser, adminId);
 
     if (
       typeof name !== "string" ||
       typeof description !== "string" ||
-      parsedPriceCents === null
+      parsedPriceCents === null ||
+      !targetAdminId
     ) {
       res.status(400).json({
-        message: "Informe nome, descrição e preço do serviço.",
+        message: "Informe o estabelecimento, nome, descrição e preço do serviço.",
       });
       return;
     }
@@ -585,7 +602,7 @@ router.post("/services", async (req, res, next) => {
 
     const service = await prisma.service.create({
       data: {
-        adminId: req.currentUser.id,
+        adminId: targetAdminId,
         name: name.trim(),
         description: description.trim() || null,
         priceCents: parsedPriceCents,
@@ -612,19 +629,20 @@ router.post("/services", async (req, res, next) => {
 
 router.patch("/services", async (req, res, next) => {
   try {
-    if (!userHasRole(req.currentUser, ["ADMIN"])) {
+    if (!userHasRole(req.currentUser, ["ADMIN", "SUPER_ADMIN"])) {
       res.status(403).json({
-        message: "Somente administradores podem editar serviços.",
+        message: "Somente administradores e super admin podem editar serviços.",
       });
       return;
     }
 
-    const { id, name, description, priceCents, isActive } = req.body ?? {};
+    const { adminId, id, name, description, priceCents, isActive } = req.body ?? {};
     const serviceId = parseInteger(id);
+    const targetAdminId = await resolveAdminTargetId(req.currentUser, adminId);
 
-    if (!serviceId) {
+    if (!serviceId || !targetAdminId) {
       res.status(400).json({
-        message: "Informe qual serviço deve ser editado.",
+        message: "Informe o estabelecimento e qual serviço deve ser editado.",
       });
       return;
     }
@@ -632,7 +650,7 @@ router.patch("/services", async (req, res, next) => {
     const currentService = await prisma.service.findFirst({
       where: {
         id: serviceId,
-        adminId: req.currentUser.id,
+        adminId: targetAdminId,
       },
     });
 

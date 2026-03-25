@@ -86,6 +86,7 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 
 const SUPER_ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { to: adminRoutes.registration, label: "Registro" },
+  { to: adminRoutes.services, label: "Serviços" },
   { to: adminRoutes.dashboard, label: "Dashboard" },
   { to: adminRoutes.revenue, label: "Faturamento" },
 ];
@@ -343,6 +344,7 @@ export function AdminDashboardPage() {
   const [adminActionError, setAdminActionError] = useState("");
   const [adminActionSuccess, setAdminActionSuccess] = useState("");
   const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
+  const [selectedServiceAdminId, setSelectedServiceAdminId] = useState<number | null>(null);
   const [serviceForm, setServiceForm] = useState({
     name: "",
     description: "",
@@ -465,12 +467,28 @@ export function AdminDashboardPage() {
       }
     }
 
-    async function loadServices(authToken: string) {
+    if (isSuperAdmin) {
+      void loadAdminUsers(token);
+      return;
+    }
+
+    setAdminUsers([]);
+  }, [isSuperAdmin, token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    async function loadServices(authToken: string, adminId?: number | null) {
+      const query =
+        isSuperAdmin && adminId ? `?adminId=${encodeURIComponent(String(adminId))}` : "";
+
       setIsLoadingServices(true);
       setServicesError("");
 
       try {
-        const response = await fetch(buildApiUrl("/api/admin/services"), {
+        const response = await fetch(buildApiUrl(`/api/admin/services${query}`), {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
@@ -493,14 +511,19 @@ export function AdminDashboardPage() {
     }
 
     if (isSuperAdmin) {
-      void loadAdminUsers(token);
-      setServices([]);
+      if (!selectedServiceAdminId) {
+        setServices([]);
+        setServicesError("");
+        setIsLoadingServices(false);
+        return;
+      }
+
+      void loadServices(token, selectedServiceAdminId);
       return;
     }
 
-    setAdminUsers([]);
     void loadServices(token);
-  }, [isSuperAdmin, token]);
+  }, [isSuperAdmin, selectedServiceAdminId, token]);
 
   useEffect(() => {
     if (!profile || isSuperAdmin) {
@@ -515,6 +538,31 @@ export function AdminDashboardPage() {
       businessAddress: profile.businessAddress ?? "",
     });
   }, [isSuperAdmin, profile]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      setSelectedServiceAdminId(null);
+      return;
+    }
+
+    if (!adminUsers.length) {
+      setSelectedServiceAdminId(null);
+      return;
+    }
+
+    setSelectedServiceAdminId((current) => {
+      if (current && adminUsers.some((account) => account.id === current)) {
+        return current;
+      }
+
+      return adminUsers.find((account) => account.isActive)?.id ?? adminUsers[0].id;
+    });
+  }, [adminUsers, isSuperAdmin]);
+
+  const selectedServiceAdmin = useMemo(
+    () => adminUsers.find((account) => account.id === selectedServiceAdminId) ?? null,
+    [adminUsers, selectedServiceAdminId],
+  );
 
   const activeBookings = useMemo(
     () => bookings.filter((booking) => booking.status !== "CANCELLED"),
@@ -780,11 +828,22 @@ export function AdminDashboardPage() {
       return;
     }
 
+    if (isSuperAdmin && !selectedServiceAdminId) {
+      setServices([]);
+      setServicesError("");
+      return;
+    }
+
     setIsLoadingServices(true);
     setServicesError("");
 
     try {
-      const response = await fetch(buildApiUrl("/api/admin/services"), {
+      const query =
+        isSuperAdmin && selectedServiceAdminId
+          ? `?adminId=${encodeURIComponent(String(selectedServiceAdminId))}`
+          : "";
+
+      const response = await fetch(buildApiUrl(`/api/admin/services${query}`), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -946,12 +1005,18 @@ export function AdminDashboardPage() {
   const handleServiceSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!token || isSuperAdmin) {
+    if (!token) {
       return;
     }
 
     const isEditing = Boolean(editingServiceId);
     const priceCents = parsePriceInput(serviceForm.price);
+    const targetAdminId = isSuperAdmin ? selectedServiceAdminId : null;
+
+    if (isSuperAdmin && !targetAdminId) {
+      setServiceActionError("Selecione um estabelecimento para cadastrar os serviços.");
+      return;
+    }
 
     if (!priceCents) {
       setServiceActionError("Informe um preço válido para o serviço.");
@@ -972,12 +1037,14 @@ export function AdminDashboardPage() {
         body: JSON.stringify(
           editingServiceId
             ? {
+                adminId: targetAdminId,
                 id: editingServiceId,
                 name: serviceForm.name,
                 description: serviceForm.description,
                 priceCents,
               }
             : {
+                adminId: targetAdminId,
                 name: serviceForm.name,
                 description: serviceForm.description,
                 priceCents,
@@ -1008,7 +1075,12 @@ export function AdminDashboardPage() {
   };
 
   const handleToggleService = async (service: ServiceItem) => {
-    if (!token || isSuperAdmin) {
+    if (!token) {
+      return;
+    }
+
+    if (isSuperAdmin && !selectedServiceAdminId) {
+      setServiceActionError("Selecione um estabelecimento para editar os serviços.");
       return;
     }
 
@@ -1023,6 +1095,7 @@ export function AdminDashboardPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          adminId: isSuperAdmin ? selectedServiceAdminId : null,
           id: service.id,
           isActive: !service.isActive,
         }),
@@ -1366,6 +1439,53 @@ export function AdminDashboardPage() {
           </div>
         ) : null}
 
+        {isSuperAdmin ? (
+          <div className="mt-6 rounded-[1.75rem] border border-white/8 bg-black/20 p-5">
+            {adminUsers.length ? (
+              <label className="space-y-2">
+                <span className="text-sm text-white/60">Estabelecimento</span>
+                <select
+                  value={selectedServiceAdminId?.toString() ?? ""}
+                  onChange={(event) => {
+                    setSelectedServiceAdminId(
+                      event.target.value ? Number(event.target.value) : null,
+                    );
+                    resetServiceForm();
+                  }}
+                  className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition-colors duration-300 focus:border-[#00C896]/35"
+                >
+                  <option value="" className="bg-[#101010] text-white">
+                    Selecione um estabelecimento
+                  </option>
+                  {adminUsers.map((account) => (
+                    <option
+                      key={account.id}
+                      value={account.id}
+                      className="bg-[#101010] text-white"
+                    >
+                      {account.businessName || account.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="text-sm leading-7 text-white/60">
+                Crie um estabelecimento na aba de registro para começar a cadastrar serviços.
+              </p>
+            )}
+
+            {selectedServiceAdmin ? (
+              <p className="mt-4 text-sm leading-7 text-white/55">
+                Os serviços criados aqui ficam vinculados a{" "}
+                <span className="font-semibold text-white">
+                  {selectedServiceAdmin.businessName || selectedServiceAdmin.name}
+                </span>
+                .
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <form
           onSubmit={handleServiceSubmit}
           className="mt-6 rounded-[1.75rem] border border-white/8 bg-black/20 p-5"
@@ -1440,7 +1560,7 @@ export function AdminDashboardPage() {
 
           <button
             type="submit"
-            disabled={isSubmittingService}
+            disabled={isSubmittingService || (isSuperAdmin && !selectedServiceAdminId)}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#00C896] px-6 py-3.5 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8]"
           >
             {isSubmittingService ? (
@@ -1465,6 +1585,22 @@ export function AdminDashboardPage() {
             <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
           ) : null}
         </div>
+
+        {isSuperAdmin && selectedServiceAdmin ? (
+          <div className="mt-6 rounded-[1.25rem] border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/60">
+            Exibindo os serviços de{" "}
+            <span className="font-semibold text-white">
+              {selectedServiceAdmin.businessName || selectedServiceAdmin.name}
+            </span>
+            .
+          </div>
+        ) : null}
+
+        {isSuperAdmin && !adminUsers.length ? (
+          <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
+            Nenhum estabelecimento cadastrado ainda.
+          </div>
+        ) : null}
 
         {!isLoadingServices && !services.length ? (
           <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
@@ -1918,6 +2054,10 @@ export function AdminDashboardPage() {
     if (isSuperAdmin) {
       if (activePath === adminRoutes.registration) {
         return renderAdminAccountsPage;
+      }
+
+      if (activePath === adminRoutes.services) {
+        return renderServicesPage;
       }
 
       if (activePath === adminRoutes.revenue) {

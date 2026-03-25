@@ -69,6 +69,11 @@ export function buildAdminMenu(
         icon: <BookUser className="h-5 w-5" />,
       },
       {
+        label: "Serviços",
+        href: adminRoutes.services,
+        icon: <Scissors className="h-5 w-5" />,
+      },
+      {
         label: "Dashboard",
         href: adminRoutes.dashboard,
         icon: <LayoutPanelTop className="h-5 w-5" />,
