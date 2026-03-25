@@ -9,11 +9,14 @@ import { ClientHistoryPage } from "./pages/ClientHistoryPage";
 import { ClientLocationsPage } from "./pages/ClientLocationsPage";
 import { ClientProfilePage } from "./pages/ClientProfilePage";
 import { LandingPage } from "./pages/LandingPage";
+import { PublicBarbershopsPage } from "./pages/PublicBarbershopsPage";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/barbearias" element={<PublicBarbershopsPage />} />
+      <Route path="/barbearias/:locationId" element={<PublicBarbershopsPage />} />
       <Route path="/admin-acesso" element={<AdminAuthPage />} />
       <Route
         path="/admin/*"

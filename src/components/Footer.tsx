@@ -70,6 +70,12 @@ export function Footer() {
             </p>
             <div className="mt-4 space-y-3">
               <Link
+                to={contactLinks.publicBarbershops}
+                className="block text-sm text-white/65 transition-colors duration-300 hover:text-[#00C896]"
+              >
+                Barbearias
+              </Link>
+              <Link
                 to={contactLinks.admin}
                 className="block text-sm text-white/65 transition-colors duration-300 hover:text-[#00C896]"
               >

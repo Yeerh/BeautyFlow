@@ -5,7 +5,8 @@ export const navLinks = [
 ] as const;
 
 export const contactLinks = {
-  schedule: "#cta",
+  schedule: "/barbearias",
+  publicBarbershops: "/barbearias",
   whatsapp:
     "https://wa.me/5511999990000?text=Olá,%20quero%20agendar%20um%20atendimento%20pela%20BeautyFlow.",
   serviceWhatsapp:
