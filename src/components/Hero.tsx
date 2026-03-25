@@ -9,6 +9,7 @@ const heroNavLinks = [
   { label: "INICIO", href: "#inicio" },
   { label: "SERVICOS", href: "#servicos" },
   { label: "SOBRE", href: "#sobre" },
+  { label: "LOCAIS", href: "#locais" },
   { label: "PLANOS", href: "#beneficios" },
 ] as const;
 
