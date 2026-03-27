@@ -10,6 +10,7 @@ import { ClientHistoryPage } from "./pages/ClientHistoryPage";
 import { ClientLocationsPage } from "./pages/ClientLocationsPage";
 import { ClientProfilePage } from "./pages/ClientProfilePage";
 import { LandingPage } from "./pages/LandingPage";
+import { PublicBarberLinkPage } from "./pages/PublicBarberLinkPage";
 import { PublicBarbershopsPage } from "./pages/PublicBarbershopsPage";
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/sobre-plataforma" element={<AboutPlatformPage />} />
       <Route path="/barbearias" element={<PublicBarbershopsPage />} />
       <Route path="/barbearias/:locationId" element={<PublicBarbershopsPage />} />
+      <Route path="/link/:adminId" element={<PublicBarberLinkPage />} />
       <Route path="/admin-acesso" element={<AdminAuthPage />} />
       <Route
         path="/admin/*"

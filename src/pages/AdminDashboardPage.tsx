@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   BadgeCheck,
+  Copy,
   CircleDollarSign,
+  ExternalLink,
   LayoutPanelTop,
+  Link2,
   LoaderCircle,
   LogOut,
   MapPin,
@@ -17,6 +20,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { RoleSidebarShell } from "@/components/RoleSidebarShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { buildApiUrl } from "@/lib/api";
+import { buildBarberLinkPath, buildBarberLinkUrl } from "@/lib/barberLink";
 import { adminRoutes, buildAdminMenu } from "@/lib/portalNavigation";
 
 type DashboardBooking = {
@@ -79,6 +83,7 @@ const metricIcons = [CircleDollarSign, BadgeCheck, LayoutPanelTop, UserRound] as
 
 const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { to: adminRoutes.panel, label: "Painel" },
+  { to: adminRoutes.link, label: "LINK" },
   { to: adminRoutes.services, label: "Serviços" },
   { to: adminRoutes.profile, label: "Perfil" },
   { to: adminRoutes.revenue, label: "Faturamento do dia" },
@@ -358,6 +363,8 @@ export function AdminDashboardPage() {
   const [zipLookupSuccess, setZipLookupSuccess] = useState("");
   const [isLookingUpZipCode, setIsLookingUpZipCode] = useState(false);
   const [profileUploadError, setProfileUploadError] = useState("");
+  const [linkActionError, setLinkActionError] = useState("");
+  const [linkActionSuccess, setLinkActionSuccess] = useState("");
 
   const navItems = isSuperAdmin ? SUPER_ADMIN_NAV_ITEMS : ADMIN_NAV_ITEMS;
   const currentPath = location.pathname.replace(/\/$/, "") || "/admin";
@@ -680,11 +687,50 @@ export function AdminDashboardPage() {
     ? Math.round(todayRevenueCents / todayBookings.length)
     : 0;
   const topLocation = locationBreakdown[0] ?? null;
+  const adminLinkOwnerId = !isSuperAdmin ? profile?.id ?? user?.id ?? null : null;
+  const publicLinkPath = buildBarberLinkPath(adminLinkOwnerId);
+  const publicLinkUrl = buildBarberLinkUrl(adminLinkOwnerId);
+  const publicLinkLabel =
+    profile?.businessName || profile?.name || user?.businessName || user?.name || "Seu link";
 
   function handleLogout() {
     logout();
     window.location.assign("/admin-acesso");
   }
+
+  const handleCopyPublicLink = async () => {
+    setLinkActionError("");
+    setLinkActionSuccess("");
+
+    if (!publicLinkUrl) {
+      setLinkActionError("Carregue o perfil do estabelecimento para gerar o link.");
+      return;
+    }
+
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      setLinkActionError("Nao foi possivel copiar automaticamente neste navegador.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(publicLinkUrl);
+      setLinkActionSuccess("Link copiado para compartilhar com clientes.");
+    } catch {
+      setLinkActionError("Nao foi possivel copiar o link agora.");
+    }
+  };
+
+  const handleOpenPublicLink = () => {
+    setLinkActionError("");
+    setLinkActionSuccess("");
+
+    if (!publicLinkUrl) {
+      setLinkActionError("Carregue o perfil do estabelecimento para abrir o link.");
+      return;
+    }
+
+    window.open(publicLinkUrl, "_blank", "noopener,noreferrer");
+  };
 
   const handleBusinessPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1671,6 +1717,179 @@ export function AdminDashboardPage() {
     </div>
   );
 
+  const renderLinkPage = (
+    <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-2xl border border-[#00C896]/20 bg-[#00C896]/10 p-3 text-[#00C896]">
+            <Link2 className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-white">LINK</h2>
+            <p className="text-sm text-white/58">
+              Compartilhe uma pagina simples com os servicos do seu estabelecimento.
+            </p>
+          </div>
+        </div>
+
+        {(linkActionError || linkActionSuccess) && !isLoadingProfile ? (
+          <div className="mt-6 space-y-3">
+            {linkActionError ? (
+              <div className="rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+                {linkActionError}
+              </div>
+            ) : null}
+            {linkActionSuccess ? (
+              <div className="rounded-[1.25rem] border border-[#00C896]/20 bg-[#00C896]/10 px-4 py-3 text-sm text-[#d7fff4]">
+                {linkActionSuccess}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {isLoadingProfile ? (
+          <div className="mt-6 flex items-center gap-3 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-4 text-sm text-white/65">
+            <LoaderCircle className="h-4 w-4 animate-spin text-[#00C896]" />
+            Carregando link do estabelecimento...
+          </div>
+        ) : (
+          <div className="mt-6 rounded-[1.75rem] border border-white/8 bg-black/20 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <span className="inline-flex rounded-full border border-[#F8C8DC]/20 bg-[#F8C8DC]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#F8C8DC]">
+                  No-code para compartilhar
+                </span>
+                <h3 className="mt-4 text-xl font-semibold text-white">{publicLinkLabel}</h3>
+                <p className="mt-2 flex items-start gap-2 text-sm text-white/58">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#00C896]" />
+                  <span>{profile?.businessAddress || "Endereco nao informado"}</span>
+                </p>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm text-white/70">
+                <span className="block text-xs uppercase tracking-[0.18em] text-white/40">
+                  Servicos no link
+                </span>
+                <span className="mt-2 block text-xl font-semibold text-white">
+                  {services.length}
+                </span>
+              </div>
+            </div>
+
+            <label className="mt-6 block space-y-2">
+              <span className="text-sm text-white/60">Link publico da sua pagina</span>
+              <input
+                value={publicLinkUrl}
+                readOnly
+                className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none"
+              />
+            </label>
+
+            <div className="mt-3 rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-xs leading-6 text-white/48">
+              Caminho interno: {publicLinkPath || "Link indisponivel"}
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => void handleCopyPublicLink()}
+                disabled={!publicLinkUrl}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/78 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00C896]/35 hover:text-[#00C896] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Copy className="h-4 w-4" />
+                Copiar link
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenPublicLink}
+                disabled={!publicLinkUrl}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#00C896] px-5 py-3 text-sm font-semibold text-[#0B0B0B] shadow-[0_16px_40px_rgba(0,200,150,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2ed5a8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Abrir pagina
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-3">
+              {[
+                "O cliente abre o link, ve os servicos ativos e toca em Agendar.",
+                "Se ainda nao estiver logado, o sistema envia para login/cadastro.",
+                "Depois do login, o cliente volta para continuar o agendamento da sua barbearia.",
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/62"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Servicos exibidos no link</h2>
+            <p className="mt-2 text-sm text-white/58">
+              Esta e a lista que o cliente encontra na pagina publica do seu estabelecimento.
+            </p>
+          </div>
+          {isLoadingServices ? (
+            <LoaderCircle className="h-4 w-4 animate-spin text-[#F8C8DC]" />
+          ) : null}
+        </div>
+
+        {servicesError ? (
+          <div className="mt-6 rounded-[1.25rem] border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fecaca]">
+            {servicesError}
+          </div>
+        ) : null}
+
+        {!isLoadingServices && !services.length ? (
+          <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-black/20 px-5 py-6 text-sm text-white/58">
+            Nenhum servico ativo cadastrado ainda. Cadastre seus servicos na aba Servicos para
+            preencher o link automaticamente.
+          </div>
+        ) : null}
+
+        <div className="mt-6 space-y-4">
+          {services.map((service) => (
+            <article
+              key={service.id}
+              className="rounded-[1.5rem] border border-white/8 bg-black/20 p-5"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-lg font-semibold text-white">{service.name}</p>
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+                        service.isActive
+                          ? "border-[#00C896]/20 bg-[#00C896]/10 text-[#00C896]"
+                          : "border-[#ef4444]/20 bg-[#ef4444]/10 text-[#fecaca]"
+                      }`}
+                    >
+                      {service.isActive ? "Ativo" : "Inativo"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-white/58">
+                    {service.description || "Sem descricao cadastrada."}
+                  </p>
+                </div>
+                <span className="text-lg font-semibold text-[#F8C8DC]">
+                  {service.priceLabel}
+                </span>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+
   const renderRevenuePage = isSuperAdmin ? (
     <>
       <section className="rounded-[2rem] border border-[#00C896]/15 bg-[linear-gradient(180deg,rgba(0,200,150,0.12),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
@@ -2087,6 +2306,10 @@ export function AdminDashboardPage() {
 
     if (activePath === adminRoutes.profile) {
       return renderProfilePage;
+    }
+
+    if (activePath === adminRoutes.link) {
+      return renderLinkPage;
     }
 
     if (activePath === adminRoutes.services) {

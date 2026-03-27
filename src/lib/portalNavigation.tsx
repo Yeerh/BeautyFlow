@@ -3,6 +3,7 @@ import {
   CalendarDays,
   CircleDollarSign,
   LayoutPanelTop,
+  Link2,
   LogOut,
   MapPin,
   Scissors,
@@ -27,6 +28,7 @@ export const adminRoutes = {
   panel: "/admin/painel",
   profile: "/admin/perfil",
   services: "/admin/servicos",
+  link: "/admin/link",
   revenue: "/admin/faturamento",
   dashboard: "/admin/dashboard",
   registration: "/admin/registro",
@@ -69,7 +71,7 @@ export function buildAdminMenu(
         icon: <BookUser className="h-5 w-5" />,
       },
       {
-        label: "Serviços",
+        label: "Servicos",
         href: adminRoutes.services,
         icon: <Scissors className="h-5 w-5" />,
       },
@@ -98,9 +100,14 @@ export function buildAdminMenu(
       icon: <LayoutPanelTop className="h-5 w-5" />,
     },
     {
-      label: "Serviços",
+      label: "Servicos",
       href: adminRoutes.services,
       icon: <Scissors className="h-5 w-5" />,
+    },
+    {
+      label: "LINK",
+      href: adminRoutes.link,
+      icon: <Link2 className="h-5 w-5" />,
     },
     {
       label: "Perfil",
