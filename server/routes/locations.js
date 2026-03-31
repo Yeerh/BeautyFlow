@@ -14,6 +14,7 @@ function sanitizeLocation(location) {
     businessPhotoUrl: location.businessPhotoUrl?.trim() || null,
     businessAddress: location.businessAddress?.trim() || null,
     ownerName: location.name?.trim() || "Responsavel",
+    phone: location.phone?.trim() || null,
   };
 }
 
@@ -34,6 +35,7 @@ router.get("/", async (req, res, next) => {
           businessName: true,
           businessPhotoUrl: true,
           businessAddress: true,
+          phone: true,
           services: {
             where: {
               isActive: true,
@@ -81,6 +83,7 @@ router.get("/", async (req, res, next) => {
         businessName: true,
         businessPhotoUrl: true,
         businessAddress: true,
+        phone: true,
       },
     });
 

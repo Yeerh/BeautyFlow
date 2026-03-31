@@ -20,7 +20,6 @@ import { buildApiUrl } from "@/lib/api";
 import { buildClientMenu, clientRoutes } from "@/lib/portalNavigation";
 
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
-const whatsappBaseNumber = "5581992388506";
 const NETWORK_ERROR_MESSAGE =
   "Nao foi possivel conectar ao servidor agora. Tente novamente em alguns instantes.";
 
@@ -38,6 +37,7 @@ type LocationDetails = {
   businessPhotoUrl: string | null;
   businessAddress: string | null;
   ownerName: string;
+  phone: string | null;
 };
 
 type ServiceItem = {
@@ -96,12 +96,37 @@ function getStatusLabel(status: string) {
   return "Pendente";
 }
 
+function normalizeWhatsappNumber(phone: string | null | undefined) {
+  const digits = phone?.replace(/\D/g, "") ?? "";
+
+  if (!digits) {
+    return null;
+  }
+
+  if (digits.startsWith("55")) {
+    return digits;
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+
+  return digits;
+}
+
 function buildWhatsappLink(input: {
   booking: SavedBooking;
   customerName: string;
   customerEmail: string;
   locationName: string;
+  locationPhone: string | null;
 }) {
+  const whatsappNumber = normalizeWhatsappNumber(input.locationPhone);
+
+  if (!whatsappNumber) {
+    return null;
+  }
+
   const message = [
     "Ola, quero confirmar um agendamento pela area BeautyFlow.",
     `Codigo: #${input.booking.id}`,
@@ -115,7 +140,7 @@ function buildWhatsappLink(input: {
     `E-mail: ${input.customerEmail || "-"}`,
   ].join("\n");
 
-  return `https://wa.me/${whatsappBaseNumber}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 }
 
 export function ClientBookingPage() {
@@ -416,7 +441,15 @@ export function ClientBookingPage() {
         customerName,
         customerEmail,
         locationName: location.businessName,
+        locationPhone: location.phone,
       });
+
+      if (!whatsappLink) {
+        setSubmitError(
+          "Agendamento salvo, mas o local nao possui um numero de WhatsApp valido cadastrado.",
+        );
+        return;
+      }
 
       window.open(whatsappLink, "_blank", "noopener,noreferrer");
     } catch (error) {
