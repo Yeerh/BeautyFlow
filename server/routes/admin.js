@@ -10,6 +10,7 @@ import {
   normalizeEmail,
   parseInteger,
 } from "../lib/schedule.js";
+import { ensureAvailabilitySlotTable } from "../lib/ensure-schema.js";
 
 const router = Router();
 const MIN_PASSWORD_LENGTH = 6;
@@ -48,6 +49,8 @@ function buildSlotKey(scheduledDate, scheduledTime) {
 }
 
 async function listAvailabilitySlots(targetAdminId) {
+  await ensureAvailabilitySlotTable();
+
   const [slots, bookings] = await Promise.all([
     prisma.availabilitySlot.findMany({
       where: {
@@ -646,6 +649,8 @@ router.post("/availability", async (req, res, next) => {
       return;
     }
 
+    await ensureAvailabilitySlotTable();
+
     const slot = await prisma.availabilitySlot.upsert({
       where: {
         adminId_scheduledDate_scheduledTime: {
@@ -703,6 +708,8 @@ router.delete("/availability", async (req, res, next) => {
       });
       return;
     }
+
+    await ensureAvailabilitySlotTable();
 
     const slot = await prisma.availabilitySlot.findFirst({
       where: {

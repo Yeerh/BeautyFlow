@@ -9,6 +9,7 @@ import {
   normalizeEmail,
   parseInteger,
 } from "../lib/schedule.js";
+import { ensureAvailabilitySlotTable } from "../lib/ensure-schema.js";
 
 const router = Router();
 
@@ -148,6 +149,8 @@ router.get("/availability", async (req, res, next) => {
       res.json({ items: [] });
       return;
     }
+
+    await ensureAvailabilitySlotTable();
 
     const [slots, occupiedBookings] = await Promise.all([
       prisma.availabilitySlot.findMany({
@@ -337,6 +340,8 @@ router.post("/", async (req, res, next) => {
       });
       return;
     }
+
+    await ensureAvailabilitySlotTable();
 
     const authenticatedUser = await getAuthenticatedUser(req);
     const isAdminActor = userHasRole(authenticatedUser, ["ADMIN", "SUPER_ADMIN"]);

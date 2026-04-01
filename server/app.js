@@ -6,12 +6,17 @@ import bookingsRouter from "./routes/bookings.js";
 import locationsRouter from "./routes/locations.js";
 import { ensureSuperAdminUser } from "./auth/super-admin.js";
 import { getFrontendUrl } from "./config/public-urls.js";
+import { ensureAvailabilitySlotTable } from "./lib/ensure-schema.js";
 
 const app = express();
 const frontendUrl = getFrontendUrl();
 
 void ensureSuperAdminUser().catch((error) => {
   console.error("Failed to ensure super admin user.", error);
+});
+
+void ensureAvailabilitySlotTable().catch((error) => {
+  console.error("Failed to ensure availability schema.", error);
 });
 
 app.use(
