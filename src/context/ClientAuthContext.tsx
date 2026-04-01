@@ -28,6 +28,7 @@ type ClientAuthContextValue = {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
+  isSessionReady: boolean;
   login: (input: { identifier: string; password: string }) => Promise<AuthUser>;
   loginWithEmail: (input: { email: string; password: string }) => Promise<AuthUser>;
   registerWithEmail: (input: {
@@ -44,8 +45,8 @@ type ClientAuthContextValue = {
   logout: () => void;
 };
 
-const AUTH_STORAGE_KEY = "beautyflow.client.session";
-const TOKEN_STORAGE_KEY = "beautyflow.client.token";
+const AUTH_STORAGE_KEY = "beautyflow.v2.client.session";
+const TOKEN_STORAGE_KEY = "beautyflow.v2.client.token";
 
 const ClientAuthContext = createContext<ClientAuthContextValue | null>(null);
 
@@ -80,8 +81,10 @@ function normalizeEmail(email: string) {
 }
 
 function normalizeRole(role?: string | null): AuthRole {
-  if (role === "admin" || role === "super_admin") {
-    return role;
+  const normalizedRole = role?.trim().toLowerCase();
+
+  if (normalizedRole === "admin" || normalizedRole === "super_admin") {
+    return normalizedRole;
   }
 
   return "client";
@@ -124,9 +127,12 @@ function parseJwtPayload(token: string): AuthUser | null {
     const decodedBytes = Uint8Array.from(decodedPayload, (char) => char.charCodeAt(0));
     const parsedPayload = JSON.parse(
       new TextDecoder().decode(decodedBytes),
-    ) as Partial<AuthUser>;
+    ) as Partial<AuthUser> & { exp?: number };
 
-    if (!parsedPayload.email) {
+    if (
+      !parsedPayload.email ||
+      (typeof parsedPayload.exp === "number" && parsedPayload.exp * 1000 <= Date.now())
+    ) {
       return null;
     }
 
@@ -172,6 +178,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     const storedToken = readStorage<string | null>(TOKEN_STORAGE_KEY, null);
     return storedToken ? parseJwtPayload(storedToken) : null;
   });
+  const [isSessionReady, setIsSessionReady] = useState(() => !Boolean(token));
 
   useEffect(() => {
     writeStorage(AUTH_STORAGE_KEY, user);
@@ -182,15 +189,62 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   useEffect(() => {
-    if (!user && token) {
+    if (!token) {
+      setIsSessionReady(true);
+      return;
+    }
+
+    if (!user) {
       const tokenUser = parseJwtPayload(token);
 
       if (tokenUser) {
         setUser(tokenUser);
       } else {
-        setToken(null);
+        clearSession();
+      }
+
+      setIsSessionReady(true);
+    }
+  }, [token, user]);
+
+  useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
+
+    let isCancelled = false;
+    const activeRole = user.role;
+
+    async function validateSession() {
+      setIsSessionReady(false);
+
+      try {
+        const endpoint =
+          activeRole === "client" ? "/api/bookings/mine" : "/api/admin/profile";
+        const response = await fetch(buildApiUrl(endpoint), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.status === 401) {
+          clearSession();
+          return;
+        }
+      } catch {
+        // Keep the locally parsed session on transient network failures.
+      } finally {
+        if (!isCancelled) {
+          setIsSessionReady(true);
+        }
       }
     }
+
+    void validateSession();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [token, user]);
 
   function persistSession(authToken: string, authUser: AuthUser) {
@@ -301,6 +355,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
       user,
       token,
       isAuthenticated: Boolean(user || token),
+      isSessionReady,
       login: ({ identifier, password }) =>
         authenticate("login", {
           identifier: identifier.trim(),
@@ -323,7 +378,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
         clearSession();
       },
     }),
-    [token, user],
+    [isSessionReady, token, user],
   );
 
   return (

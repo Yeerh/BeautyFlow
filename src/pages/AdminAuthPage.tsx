@@ -11,13 +11,17 @@ import { useClientAuth } from "@/context/ClientAuthContext";
 import { adminRoutes, clientRoutes } from "@/lib/portalNavigation";
 
 export function AdminAuthPage() {
-  const { isAuthenticated, login, logout, user } = useClientAuth();
+  const { isAuthenticated, isSessionReady, login, logout, user } = useClientAuth();
   const [form, setForm] = useState({
     identifier: "",
     password: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  if (!isSessionReady) {
+    return null;
+  }
 
   if (isAuthenticated && user) {
     return (

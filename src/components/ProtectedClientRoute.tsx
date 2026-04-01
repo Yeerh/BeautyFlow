@@ -6,7 +6,11 @@ import { adminRoutes } from "@/lib/portalNavigation";
 
 export function ProtectedClientRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const { isAuthenticated, user } = useClientAuth();
+  const { isAuthenticated, isSessionReady, user } = useClientAuth();
+
+  if (!isSessionReady) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return (

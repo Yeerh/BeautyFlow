@@ -5,7 +5,11 @@ import { clientRoutes } from "@/lib/portalNavigation";
 
 export function ProtectedAdminRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const { isAuthenticated, user } = useClientAuth();
+  const { isAuthenticated, isSessionReady, user } = useClientAuth();
+
+  if (!isSessionReady) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/admin-acesso" replace state={{ from: location }} />;
