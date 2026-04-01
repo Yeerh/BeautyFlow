@@ -26,6 +26,7 @@ model User {
   clientBookings  Booking[] @relation("ClientBookings")
   adminBookings   Booking[] @relation("AdminBookings")
   services        Service[] @relation("AdminServices")
+  availabilitySlots AvailabilitySlot[] @relation("AdminAvailabilitySlots")
   createdBy    User?        @relation("AdminCreatedUsers", fields: [createdById], references: [id], onDelete: SetNull)
   createdUsers User[]       @relation("AdminCreatedUsers")
 
@@ -56,6 +57,21 @@ model Booking {
 
   @@unique([adminId, scheduledDate, scheduledTime])
   @@index([userId, createdAt])
+  @@index([adminId, scheduledAt])
+  @@index([scheduledAt])
+}
+
+model AvailabilitySlot {
+  id            Int      @id @default(autoincrement())
+  adminId       Int
+  scheduledDate String
+  scheduledTime String
+  scheduledAt   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  admin         User     @relation("AdminAvailabilitySlots", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, scheduledDate, scheduledTime])
   @@index([adminId, scheduledAt])
   @@index([scheduledAt])
 }

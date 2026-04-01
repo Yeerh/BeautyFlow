@@ -3,28 +3,16 @@ import bcrypt from "bcryptjs";
 import prisma from "../prisma/client.js";
 import { getAuthenticatedUser, userHasRole } from "../auth/session.js";
 import { normalizeUsername } from "../auth/super-admin.js";
+import {
+  buildFutureScheduleFilter,
+  buildScheduledAt,
+  formatPrice,
+  normalizeEmail,
+  parseInteger,
+} from "../lib/schedule.js";
 
 const router = Router();
 const MIN_PASSWORD_LENGTH = 6;
-
-function normalizeEmail(email) {
-  return email.trim().toLowerCase();
-}
-
-function parseInteger(value) {
-  const parsedValue =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value)
-        : Number.NaN;
-
-  return Number.isFinite(parsedValue) ? Math.round(parsedValue) : null;
-}
-
-function formatPrice(priceCents) {
-  return `${(priceCents / 100).toFixed(2).replace(".", ",")}$`;
-}
 
 function sanitizeAdminUser(user) {
   return {
@@ -53,6 +41,71 @@ function sanitizeService(service) {
     isActive: Boolean(service.isActive),
     createdAt: service.createdAt,
   };
+}
+
+function buildSlotKey(scheduledDate, scheduledTime) {
+  return `${scheduledDate} ${scheduledTime}`;
+}
+
+async function listAvailabilitySlots(targetAdminId) {
+  const [slots, bookings] = await Promise.all([
+    prisma.availabilitySlot.findMany({
+      where: {
+        adminId: targetAdminId,
+        ...buildFutureScheduleFilter(),
+      },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        scheduledDate: true,
+        scheduledTime: true,
+      },
+    }),
+    prisma.booking.findMany({
+      where: {
+        adminId: targetAdminId,
+        status: {
+          in: ["PENDING", "CONFIRMED"],
+        },
+        ...buildFutureScheduleFilter(),
+      },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        scheduledDate: true,
+        scheduledTime: true,
+        clientName: true,
+        phone: true,
+        serviceName: true,
+        status: true,
+      },
+    }),
+  ]);
+
+  const bookingBySlot = new Map(
+    bookings.map((booking) => [
+      buildSlotKey(booking.scheduledDate, booking.scheduledTime),
+      {
+        id: booking.id,
+        clientName: booking.clientName,
+        phone: booking.phone,
+        serviceName: booking.serviceName,
+        status: booking.status,
+      },
+    ]),
+  );
+
+  return slots.map((slot) => {
+    const booking = bookingBySlot.get(buildSlotKey(slot.scheduledDate, slot.scheduledTime)) ?? null;
+
+    return {
+      id: slot.id,
+      scheduledDate: slot.scheduledDate,
+      scheduledTime: slot.scheduledTime,
+      isBooked: Boolean(booking),
+      booking,
+    };
+  });
 }
 
 async function resolveAdminTargetId(currentUser, queryAdminId) {
@@ -528,6 +581,176 @@ router.patch("/profile", async (req, res, next) => {
     res.json({
       profile: sanitizeAdminUser(updatedProfile),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/availability", async (req, res, next) => {
+  try {
+    const targetAdminId = await resolveAdminTargetId(req.currentUser, req.query.adminId);
+
+    if (!targetAdminId) {
+      res.status(400).json({
+        message: "Administrador invalido para listar a agenda.",
+      });
+      return;
+    }
+
+    res.json({
+      items: await listAvailabilitySlots(targetAdminId),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/availability", async (req, res, next) => {
+  try {
+    if (!userHasRole(req.currentUser, ["ADMIN", "SUPER_ADMIN"])) {
+      res.status(403).json({
+        message: "Somente administradores podem abrir horarios na agenda.",
+      });
+      return;
+    }
+
+    const { adminId, scheduledDate, scheduledTime } = req.body ?? {};
+    const targetAdminId = await resolveAdminTargetId(req.currentUser, adminId);
+
+    if (
+      typeof scheduledDate !== "string" ||
+      typeof scheduledTime !== "string" ||
+      !targetAdminId
+    ) {
+      res.status(400).json({
+        message: "Informe data e horario validos para abrir a agenda.",
+      });
+      return;
+    }
+
+    const normalizedDate = scheduledDate.trim();
+    const normalizedTime = scheduledTime.trim();
+    const scheduledAt = buildScheduledAt(normalizedDate, normalizedTime);
+
+    if (!scheduledAt) {
+      res.status(400).json({
+        message: "Data ou horario da agenda invalido.",
+      });
+      return;
+    }
+
+    if (scheduledAt.getTime() < Date.now()) {
+      res.status(400).json({
+        message: "Nao e possivel abrir horarios em datas passadas.",
+      });
+      return;
+    }
+
+    const slot = await prisma.availabilitySlot.upsert({
+      where: {
+        adminId_scheduledDate_scheduledTime: {
+          adminId: targetAdminId,
+          scheduledDate: normalizedDate,
+          scheduledTime: normalizedTime,
+        },
+      },
+      update: {
+        scheduledAt,
+      },
+      create: {
+        adminId: targetAdminId,
+        scheduledDate: normalizedDate,
+        scheduledTime: normalizedTime,
+        scheduledAt,
+      },
+      select: {
+        id: true,
+        scheduledDate: true,
+        scheduledTime: true,
+      },
+    });
+
+    res.status(201).json({
+      slot: {
+        ...slot,
+        isBooked: false,
+        booking: null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/availability", async (req, res, next) => {
+  try {
+    if (!userHasRole(req.currentUser, ["ADMIN", "SUPER_ADMIN"])) {
+      res.status(403).json({
+        message: "Somente administradores podem remover horarios da agenda.",
+      });
+      return;
+    }
+
+    const slotId = parseInteger(req.body?.id ?? req.query.id);
+    const targetAdminId = await resolveAdminTargetId(
+      req.currentUser,
+      req.body?.adminId ?? req.query.adminId,
+    );
+
+    if (!slotId || !targetAdminId) {
+      res.status(400).json({
+        message: "Informe qual horario deve ser removido da agenda.",
+      });
+      return;
+    }
+
+    const slot = await prisma.availabilitySlot.findFirst({
+      where: {
+        id: slotId,
+        adminId: targetAdminId,
+      },
+      select: {
+        id: true,
+        scheduledDate: true,
+        scheduledTime: true,
+      },
+    });
+
+    if (!slot) {
+      res.status(404).json({
+        message: "Horario nao encontrado na agenda do local.",
+      });
+      return;
+    }
+
+    const activeBooking = await prisma.booking.findFirst({
+      where: {
+        adminId: targetAdminId,
+        scheduledDate: slot.scheduledDate,
+        scheduledTime: slot.scheduledTime,
+        status: {
+          in: ["PENDING", "CONFIRMED"],
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (activeBooking) {
+      res.status(409).json({
+        message: "Este horario ja possui cliente registrado e nao pode ser removido.",
+      });
+      return;
+    }
+
+    await prisma.availabilitySlot.delete({
+      where: {
+        id: slotId,
+      },
+    });
+
+    res.status(204).end();
   } catch (error) {
     next(error);
   }

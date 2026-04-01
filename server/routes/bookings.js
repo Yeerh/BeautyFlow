@@ -1,31 +1,37 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
 import { getAuthenticatedUser, userHasRole } from "../auth/session.js";
+import {
+  buildFutureScheduleFilter,
+  buildScheduledAt,
+  buildSyntheticClientEmail,
+  formatPrice,
+  normalizeEmail,
+  parseInteger,
+} from "../lib/schedule.js";
 
 const router = Router();
 
-function normalizeEmail(email) {
-  return email.trim().toLowerCase();
+function buildSlotKey(scheduledDate, scheduledTime) {
+  return `${scheduledDate} ${scheduledTime}`;
 }
 
-function parseInteger(value) {
-  const parsedValue =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value)
-        : Number.NaN;
-
-  return Number.isFinite(parsedValue) ? Math.round(parsedValue) : null;
-}
-
-function buildScheduledAt(scheduledDate, scheduledTime) {
-  const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}:00`);
-  return Number.isNaN(scheduledAt.getTime()) ? null : scheduledAt;
-}
-
-function formatPrice(priceCents) {
-  return `${(priceCents / 100).toFixed(2).replace(".", ",")}$`;
+function mapDashboardBookingItem(booking) {
+  return {
+    id: booking.id,
+    adminId: booking.adminId ?? null,
+    clientName: booking.clientName,
+    phone: booking.phone,
+    serviceName: booking.serviceName,
+    servicePrice: booking.servicePrice,
+    servicePriceCents: booking.servicePriceCents,
+    scheduledDate: booking.scheduledDate,
+    scheduledTime: booking.scheduledTime,
+    status: booking.status,
+    createdAt: booking.createdAt,
+    locationName:
+      booking.admin?.businessName?.trim() || booking.admin?.name?.trim() || null,
+  };
 }
 
 function mapClientBookingHistoryItem(booking) {
@@ -50,7 +56,7 @@ router.get("/", async (req, res, next) => {
 
     if (!authenticatedUser) {
       res.status(401).json({
-        message: "Sessão inválida. Entre novamente para continuar.",
+        message: "Sessao invalida. Entre novamente para continuar.",
       });
       return;
     }
@@ -91,16 +97,12 @@ router.get("/", async (req, res, next) => {
     });
 
     res.json({
-      items: bookings.map((booking) => ({
-        ...booking,
-        locationName:
-          booking.admin?.businessName?.trim() || booking.admin?.name?.trim() || null,
-      })),
+      items: bookings.map(mapDashboardBookingItem),
     });
   } catch (error) {
     if (error?.name === "JsonWebTokenError" || error?.name === "TokenExpiredError") {
       res.status(401).json({
-        message: "Sessão inválida. Entre novamente para continuar.",
+        message: "Sessao invalida. Entre novamente para continuar.",
       });
       return;
     }
@@ -133,6 +135,57 @@ router.get("/occupied", async (req, res, next) => {
     });
 
     res.json({ items: occupiedBookings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/availability", async (req, res, next) => {
+  try {
+    const adminId = parseInteger(req.query.adminId);
+
+    if (!adminId) {
+      res.json({ items: [] });
+      return;
+    }
+
+    const [slots, occupiedBookings] = await Promise.all([
+      prisma.availabilitySlot.findMany({
+        where: {
+          adminId,
+          ...buildFutureScheduleFilter(),
+        },
+        select: {
+          id: true,
+          scheduledDate: true,
+          scheduledTime: true,
+        },
+        orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+      }),
+      prisma.booking.findMany({
+        where: {
+          adminId,
+          status: {
+            in: ["PENDING", "CONFIRMED"],
+          },
+          ...buildFutureScheduleFilter(),
+        },
+        select: {
+          scheduledDate: true,
+          scheduledTime: true,
+        },
+      }),
+    ]);
+
+    const occupiedSlots = new Set(
+      occupiedBookings.map((booking) => buildSlotKey(booking.scheduledDate, booking.scheduledTime)),
+    );
+
+    res.json({
+      items: slots.filter(
+        (slot) => !occupiedSlots.has(buildSlotKey(slot.scheduledDate, slot.scheduledTime)),
+      ),
+    });
   } catch (error) {
     next(error);
   }
@@ -210,7 +263,7 @@ router.post("/", async (req, res, next) => {
       typeof scheduledTime !== "string"
     ) {
       res.status(400).json({
-        message: "Dados do agendamento inválidos.",
+        message: "Dados do agendamento invalidos.",
       });
       return;
     }
@@ -218,7 +271,7 @@ router.post("/", async (req, res, next) => {
     const parsedAdminId = parseInteger(adminId);
     const parsedServiceId = parseInteger(serviceId);
     const trimmedName = typeof name === "string" ? name.trim() : "";
-    const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
+    const normalizedBookingEmail = typeof email === "string" ? normalizeEmail(email) : "";
     const trimmedPhone = typeof phone === "string" ? phone.trim() : "";
     const trimmedScheduledDate = scheduledDate.trim();
     const trimmedScheduledTime = scheduledTime.trim();
@@ -226,7 +279,7 @@ router.post("/", async (req, res, next) => {
 
     if (!parsedAdminId || !parsedServiceId || !trimmedScheduledDate || !trimmedScheduledTime) {
       res.status(400).json({
-        message: "Escolha local, serviço, data e horário para continuar.",
+        message: "Escolha local, servico, data e horario para continuar.",
       });
       return;
     }
@@ -235,7 +288,14 @@ router.post("/", async (req, res, next) => {
 
     if (!scheduledAt) {
       res.status(400).json({
-        message: "Data ou horário do agendamento inválido.",
+        message: "Data ou horario do agendamento invalido.",
+      });
+      return;
+    }
+
+    if (scheduledAt.getTime() < Date.now()) {
+      res.status(400).json({
+        message: "Nao e possivel registrar agendamentos em horarios passados.",
       });
       return;
     }
@@ -248,13 +308,12 @@ router.post("/", async (req, res, next) => {
       },
       select: {
         id: true,
-        businessName: true,
       },
     });
 
     if (!location) {
       res.status(404).json({
-        message: "Local selecionado não está disponível.",
+        message: "Local selecionado nao esta disponivel.",
       });
       return;
     }
@@ -267,7 +326,6 @@ router.post("/", async (req, res, next) => {
       },
       select: {
         id: true,
-        adminId: true,
         name: true,
         priceCents: true,
       },
@@ -275,61 +333,158 @@ router.post("/", async (req, res, next) => {
 
     if (!service) {
       res.status(404).json({
-        message: "Serviço selecionado não está disponível neste local.",
+        message: "Servico selecionado nao esta disponivel neste local.",
       });
       return;
     }
 
     const authenticatedUser = await getAuthenticatedUser(req);
+    const isAdminActor = userHasRole(authenticatedUser, ["ADMIN", "SUPER_ADMIN"]);
+    const isClientActor = userHasRole(authenticatedUser, ["CLIENT"]);
 
-    let clientUser = authenticatedUser;
+    if (
+      isAdminActor &&
+      authenticatedUser?.role !== "SUPER_ADMIN" &&
+      authenticatedUser?.id !== parsedAdminId
+    ) {
+      res.status(403).json({
+        message: "Voce so pode registrar clientes na agenda do seu proprio local.",
+      });
+      return;
+    }
+
+    const slotWhere = {
+      adminId_scheduledDate_scheduledTime: {
+        adminId: parsedAdminId,
+        scheduledDate: trimmedScheduledDate,
+        scheduledTime: trimmedScheduledTime,
+      },
+    };
+
+    const existingSlot = await prisma.availabilitySlot.findUnique({
+      where: slotWhere,
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingSlot) {
+      if (!isAdminActor) {
+        res.status(409).json({
+          message: "Este horario nao esta disponivel na agenda do local.",
+        });
+        return;
+      }
+
+      await prisma.availabilitySlot.create({
+        data: {
+          adminId: parsedAdminId,
+          scheduledDate: trimmedScheduledDate,
+          scheduledTime: trimmedScheduledTime,
+          scheduledAt,
+        },
+      });
+    }
+
+    const activeBooking = await prisma.booking.findFirst({
+      where: {
+        adminId: parsedAdminId,
+        scheduledDate: trimmedScheduledDate,
+        scheduledTime: trimmedScheduledTime,
+        status: {
+          in: ["PENDING", "CONFIRMED"],
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (activeBooking) {
+      res.status(409).json({
+        message: "Este horario ja foi reservado. Escolha outro.",
+      });
+      return;
+    }
+
+    let clientUser = null;
     let bookingName = trimmedName;
-    let bookingEmail = normalizedEmail;
+    let bookingEmail = normalizedBookingEmail;
     let bookingPhone = trimmedPhone;
 
-    if (clientUser) {
-      bookingName = trimmedName || clientUser.name?.trim() || "BeautyFlow";
-      bookingEmail = clientUser.email;
-      bookingPhone = trimmedPhone || clientUser.phone?.trim() || "";
+    if (isClientActor && authenticatedUser) {
+      clientUser = authenticatedUser;
+      bookingName = trimmedName || authenticatedUser.name?.trim() || "BeautyFlow";
+      bookingEmail = authenticatedUser.email;
+      bookingPhone = trimmedPhone || authenticatedUser.phone?.trim() || "";
 
       if (bookingPhone.length < 8) {
         res.status(400).json({
-          message: "Cadastre um telefone válido para concluir a reserva.",
+          message: "Cadastre um telefone valido para concluir a reserva.",
         });
         return;
       }
 
       const nextUserData = {};
 
-      if (bookingName && clientUser.name !== bookingName) {
+      if (bookingName && authenticatedUser.name !== bookingName) {
         nextUserData.name = bookingName;
       }
 
-      if (trimmedPhone && clientUser.phone !== trimmedPhone) {
+      if (trimmedPhone && authenticatedUser.phone !== trimmedPhone) {
         nextUserData.phone = trimmedPhone;
       }
 
       if (Object.keys(nextUserData).length > 0) {
         clientUser = await prisma.user.update({
-          where: { id: clientUser.id },
+          where: { id: authenticatedUser.id },
           data: nextUserData,
         });
       }
     } else {
-      bookingPhone = trimmedPhone;
+      const requiresEmail = !isAdminActor;
 
-      if (bookingName.length < 2 || !bookingEmail || bookingPhone.length < 8) {
+      if (
+        bookingName.length < 2 ||
+        bookingPhone.length < 8 ||
+        (requiresEmail && !bookingEmail)
+      ) {
         res.status(400).json({
-          message: "Preencha nome, e-mail, telefone, serviço, data e horário.",
+          message: requiresEmail
+            ? "Preencha nome, e-mail, telefone, servico, data e horario."
+            : "Preencha nome, telefone, servico, data e horario do cliente.",
         });
         return;
       }
 
-      clientUser = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-      });
+      if (bookingEmail) {
+        clientUser = await prisma.user.findFirst({
+          where: {
+            email: bookingEmail,
+          },
+        });
+
+        if (clientUser && clientUser.role !== "CLIENT") {
+          res.status(409).json({
+            message: "O e-mail informado pertence a uma conta administrativa.",
+          });
+          return;
+        }
+      }
 
       if (!clientUser) {
+        clientUser = await prisma.user.findFirst({
+          where: {
+            role: "CLIENT",
+            phone: bookingPhone,
+          },
+          orderBy: [{ createdAt: "asc" }],
+        });
+      }
+
+      if (!clientUser) {
+        bookingEmail = bookingEmail || buildSyntheticClientEmail(bookingPhone, parsedAdminId);
+
         clientUser = await prisma.user.create({
           data: {
             name: bookingName,
@@ -342,14 +497,22 @@ router.post("/", async (req, res, next) => {
           },
         });
       } else {
+        const nextUserData = {
+          name: bookingName,
+          phone: bookingPhone,
+        };
+
+        if (bookingEmail && clientUser.email !== bookingEmail) {
+          nextUserData.email = bookingEmail;
+        }
+
         clientUser = await prisma.user.update({
           where: { id: clientUser.id },
-          data: {
-            name: bookingName,
-            phone: bookingPhone,
-          },
+          data: nextUserData,
         });
       }
+
+      bookingEmail = bookingEmail || clientUser.email;
     }
 
     const booking = await prisma.booking.create({
@@ -370,6 +533,7 @@ router.post("/", async (req, res, next) => {
       },
       select: {
         id: true,
+        adminId: true,
         phone: true,
         serviceName: true,
         servicePrice: true,
@@ -379,20 +543,38 @@ router.post("/", async (req, res, next) => {
         createdAt: true,
         status: true,
         clientName: true,
-        clientEmail: true,
+        admin: {
+          select: {
+            businessName: true,
+            name: true,
+          },
+        },
       },
     });
 
-    res.status(201).json({ booking });
+    res.status(201).json({
+      booking: mapDashboardBookingItem(booking),
+    });
   } catch (error) {
     if (error?.name === "JsonWebTokenError" || error?.name === "TokenExpiredError") {
       res.status(401).json({
-        message: "Sessão inválida. Entre novamente para continuar.",
+        message: "Sessao invalida. Entre novamente para continuar.",
       });
       return;
     }
 
     if (error?.code === "P2002") {
+      const targets = Array.isArray(error?.meta?.target)
+        ? error.meta.target.map((item) => String(item))
+        : [];
+
+      if (targets.includes("email")) {
+        res.status(409).json({
+          message: "Ja existe uma conta com este e-mail.",
+        });
+        return;
+      }
+
       res.status(409).json({
         message: "Este horario ja foi reservado. Escolha outro.",
       });

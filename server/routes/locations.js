@@ -1,11 +1,8 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
+import { formatPrice } from "../lib/schedule.js";
 
 const router = Router();
-
-function formatPrice(priceCents) {
-  return `${(priceCents / 100).toFixed(2).replace(".", ",")}$`;
-}
 
 function sanitizeLocation(location) {
   return {

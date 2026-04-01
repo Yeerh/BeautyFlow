@@ -15,6 +15,8 @@ type RoleSidebarShellProps = {
   badge: string;
   title: string;
   description: string;
+  showBackLink?: boolean;
+  hideHeaderIntro?: boolean;
   menuItems: SidebarMenuItem[];
   userName: string;
   userSubtitle: string;
@@ -186,6 +188,8 @@ export function RoleSidebarShell({
   badge,
   title,
   description,
+  showBackLink = true,
+  hideHeaderIntro = false,
   menuItems,
   userName,
   userSubtitle,
@@ -194,6 +198,7 @@ export function RoleSidebarShell({
   children,
 }: RoleSidebarShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hasHeaderMeta = !hideHeaderIntro && Boolean(badge || title || description || showBackLink);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -312,27 +317,44 @@ export function RoleSidebarShell({
           </AnimatePresence>
 
           <header className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-xl sm:p-7">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-3xl">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center rounded-full border border-[#F8C8DC]/25 bg-[#F8C8DC]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#F8C8DC]">
-                    {badge}
-                  </span>
-                  <Link
-                    to="/"
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/64 transition-colors duration-200 hover:border-[#00C896]/35 hover:text-[#00C896]"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Voltar ao site
-                  </Link>
+            <div
+              className={cn(
+                "flex flex-col gap-6 lg:flex-row lg:items-end",
+                hasHeaderMeta ? "lg:justify-between" : "lg:justify-end",
+              )}
+            >
+              {hasHeaderMeta ? (
+                <div className="max-w-3xl">
+                  {(badge || showBackLink) ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {badge ? (
+                        <span className="inline-flex items-center rounded-full border border-[#F8C8DC]/25 bg-[#F8C8DC]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#F8C8DC]">
+                          {badge}
+                        </span>
+                      ) : null}
+                      {showBackLink ? (
+                        <Link
+                          to="/"
+                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/64 transition-colors duration-200 hover:border-[#00C896]/35 hover:text-[#00C896]"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                          Voltar ao site
+                        </Link>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {title ? (
+                    <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                      {title}
+                    </h1>
+                  ) : null}
+                  {description ? (
+                    <p className="mt-4 max-w-2xl text-base leading-8 text-white/68 sm:text-lg">
+                      {description}
+                    </p>
+                  ) : null}
                 </div>
-                <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                  {title}
-                </h1>
-                <p className="mt-4 max-w-2xl text-base leading-8 text-white/68 sm:text-lg">
-                  {description}
-                </p>
-              </div>
+              ) : null}
 
               {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
             </div>

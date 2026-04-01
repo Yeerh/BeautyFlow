@@ -15,7 +15,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { RoleSidebarShell } from "@/components/RoleSidebarShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { contactLinks } from "@/data/landingContent";
-import { bookingAvailability } from "@/data/portalContent";
 import { buildApiUrl } from "@/lib/api";
 import { buildClientMenu, clientRoutes } from "@/lib/portalNavigation";
 
@@ -49,6 +48,7 @@ type ServiceItem = {
 };
 
 type OccupiedSlot = {
+  id: number;
   scheduledDate: string;
   scheduledTime: string;
 };
@@ -82,6 +82,34 @@ function formatIsoDateLabel(isoDate: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(`${isoDate}T12:00:00`));
+}
+
+function buildAvailabilityDays(items: OccupiedSlot[]): BookingDay[] {
+  const groupedByDate = new Map<string, Set<string>>();
+
+  items.forEach((item) => {
+    const slots = groupedByDate.get(item.scheduledDate) ?? new Set<string>();
+    slots.add(item.scheduledTime);
+    groupedByDate.set(item.scheduledDate, slots);
+  });
+
+  return Array.from(groupedByDate.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([isoDate, slots]) => ({
+      isoDate,
+      label: new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(`${isoDate}T12:00:00`)),
+      weekday: new Intl.DateTimeFormat("pt-BR", {
+        weekday: "short",
+      })
+        .format(new Date(`${isoDate}T12:00:00`))
+        .replace(".", ""),
+      dayNumber: Number(isoDate.slice(-2)),
+      slots: Array.from(slots).sort((left, right) => left.localeCompare(right)),
+    }));
 }
 
 function getStatusLabel(status: string) {
@@ -150,10 +178,10 @@ export function ClientBookingPage() {
   const [location, setLocation] = useState<LocationDetails | null>(null);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(bookingAvailability[0]?.isoDate ?? "");
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [fallbackPhone, setFallbackPhone] = useState("");
-  const [occupiedSlots, setOccupiedSlots] = useState<OccupiedSlot[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<OccupiedSlot[]>([]);
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [pageError, setPageError] = useState("");
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
@@ -235,9 +263,9 @@ export function ClientBookingPage() {
   useEffect(() => {
     let isCancelled = false;
 
-    async function loadOccupiedSlots() {
+    async function loadAvailableSlots() {
       if (!locationId) {
-        setOccupiedSlots([]);
+        setAvailableSlots([]);
         setIsLoadingAvailability(false);
         return;
       }
@@ -246,7 +274,9 @@ export function ClientBookingPage() {
       setAvailabilityError("");
 
       try {
-        const response = await fetch(buildApiUrl(`/api/bookings/occupied?adminId=${locationId}`));
+        const response = await fetch(
+          buildApiUrl(`/api/bookings/availability?adminId=${locationId}`),
+        );
         const data = (await response.json().catch(() => ({}))) as {
           items?: OccupiedSlot[];
           message?: string;
@@ -257,7 +287,7 @@ export function ClientBookingPage() {
         }
 
         if (!isCancelled) {
-          setOccupiedSlots(Array.isArray(data.items) ? data.items : []);
+          setAvailableSlots(Array.isArray(data.items) ? data.items : []);
         }
       } catch (error) {
         if (!isCancelled) {
@@ -270,7 +300,7 @@ export function ClientBookingPage() {
       }
     }
 
-    loadOccupiedSlots();
+    loadAvailableSlots();
 
     return () => {
       isCancelled = true;
@@ -290,21 +320,8 @@ export function ClientBookingPage() {
   }, [isScheduleModalOpen]);
 
   const availableSchedule = useMemo(() => {
-    const occupiedByDate = new Map<string, Set<string>>();
-
-    occupiedSlots.forEach((item) => {
-      const slots = occupiedByDate.get(item.scheduledDate) ?? new Set<string>();
-      slots.add(item.scheduledTime);
-      occupiedByDate.set(item.scheduledDate, slots);
-    });
-
-    return bookingAvailability
-      .map((day) => ({
-        ...day,
-        slots: day.slots.filter((slot) => !occupiedByDate.get(day.isoDate)?.has(slot)),
-      }))
-      .filter((day) => day.slots.length > 0) as BookingDay[];
-  }, [occupiedSlots]);
+    return buildAvailabilityDays(availableSlots);
+  }, [availableSlots]);
 
   const activeDate =
     availableSchedule.find((date) => date.isoDate === selectedDate) ??
@@ -416,25 +433,15 @@ export function ClientBookingPage() {
       }
 
       setSavedBooking(data.booking);
-      setOccupiedSlots((current) => {
-        const alreadyExists = current.some(
+      setAvailableSlots((current) =>
+        current.filter(
           (item) =>
-            item.scheduledDate === data.booking?.scheduledDate &&
-            item.scheduledTime === data.booking?.scheduledTime,
-        );
-
-        if (alreadyExists) {
-          return current;
-        }
-
-        return [
-          ...current,
-          {
-            scheduledDate: data.booking?.scheduledDate ?? "",
-            scheduledTime: data.booking?.scheduledTime ?? "",
-          },
-        ];
-      });
+            !(
+              item.scheduledDate === data.booking?.scheduledDate &&
+              item.scheduledTime === data.booking?.scheduledTime
+            ),
+        ),
+      );
 
       const whatsappLink = buildWhatsappLink({
         booking: data.booking,

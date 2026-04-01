@@ -26,6 +26,7 @@ export const clientRoutes = {
 
 export const adminRoutes = {
   panel: "/admin/painel",
+  schedule: "/admin/agenda",
   profile: "/admin/perfil",
   services: "/admin/servicos",
   link: "/admin/link",
@@ -98,6 +99,11 @@ export function buildAdminMenu(
       label: "Painel",
       href: adminRoutes.panel,
       icon: <LayoutPanelTop className="h-5 w-5" />,
+    },
+    {
+      label: "Agenda",
+      href: adminRoutes.schedule,
+      icon: <CalendarDays className="h-5 w-5" />,
     },
     {
       label: "Servicos",

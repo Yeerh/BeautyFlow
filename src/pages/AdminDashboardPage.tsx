@@ -17,6 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Navigate, useLocation } from "react-router-dom";
+import { AdminSchedulePanel } from "@/components/AdminSchedulePanel";
 import { RoleSidebarShell } from "@/components/RoleSidebarShell";
 import { useClientAuth } from "@/context/ClientAuthContext";
 import { buildApiUrl } from "@/lib/api";
@@ -83,6 +84,7 @@ const metricIcons = [CircleDollarSign, BadgeCheck, LayoutPanelTop, UserRound] as
 
 const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { to: adminRoutes.panel, label: "Painel" },
+  { to: adminRoutes.schedule, label: "Agenda" },
   { to: adminRoutes.link, label: "LINK" },
   { to: adminRoutes.services, label: "Serviços" },
   { to: adminRoutes.profile, label: "Perfil" },
@@ -692,6 +694,35 @@ export function AdminDashboardPage() {
   const publicLinkUrl = buildBarberLinkUrl(adminLinkOwnerId);
   const publicLinkLabel =
     profile?.businessName || profile?.name || user?.businessName || user?.name || "Seu link";
+  const adminScheduleOwnerId = !isSuperAdmin ? profile?.id ?? user?.id ?? null : null;
+
+  const handleBookingCreated = (booking: DashboardBooking) => {
+    setBookings((current) => {
+      const nextItems = current.filter((item) => item.id !== booking.id);
+
+      nextItems.push({
+        ...booking,
+        locationName:
+          booking.locationName ||
+          profile?.businessName ||
+          profile?.name ||
+          user?.businessName ||
+          user?.name ||
+          null,
+      });
+
+      return nextItems.sort((left, right) => {
+        const leftDate = new Date(`${left.scheduledDate}T${left.scheduledTime}:00`).getTime();
+        const rightDate = new Date(`${right.scheduledDate}T${right.scheduledTime}:00`).getTime();
+
+        if (leftDate === rightDate) {
+          return left.id - right.id;
+        }
+
+        return leftDate - rightDate;
+      });
+    });
+  };
 
   function handleLogout() {
     logout();
@@ -1286,6 +1317,26 @@ export function AdminDashboardPage() {
       </section>
     </>
   );
+
+  const renderSchedulePage =
+    adminScheduleOwnerId && token ? (
+      <AdminSchedulePanel
+        adminId={adminScheduleOwnerId}
+        token={token}
+        businessName={profile?.businessName || profile?.name || user?.businessName || user?.name || ""}
+        services={services}
+        isLoadingServices={isLoadingServices}
+        servicesError={servicesError}
+        onBookingCreated={handleBookingCreated}
+      />
+    ) : (
+      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+        <h2 className="text-2xl font-semibold text-white">Agenda do local</h2>
+        <p className="mt-2 text-sm text-white/58">
+          Carregue o perfil do estabelecimento para liberar o calendario da agenda.
+        </p>
+      </section>
+    );
 
   const renderProfilePage = (
     <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
@@ -2308,6 +2359,10 @@ export function AdminDashboardPage() {
       return renderProfilePage;
     }
 
+    if (activePath === adminRoutes.schedule) {
+      return renderSchedulePage;
+    }
+
     if (activePath === adminRoutes.link) {
       return renderLinkPage;
     }
@@ -2325,13 +2380,14 @@ export function AdminDashboardPage() {
 
   return (
     <RoleSidebarShell
-      badge={isSuperAdmin ? "Super Admin" : "Administrador"}
+      badge={isSuperAdmin ? "Super Admin" : ""}
       title={isSuperAdmin ? "Painel administrativo" : "Área administrativa"}
       description={
         isSuperAdmin
           ? "Controle as contas administradoras, acompanhe os agendamentos do sistema e leia o faturamento consolidado."
           : "Gerencie o perfil do local, os serviços e o desempenho diário da agenda."
       }
+      hideHeaderIntro={!isSuperAdmin}
       menuItems={menuItems}
       userName={profile?.businessName || profile?.name || user?.name || "BeautyFlow"}
       userSubtitle={profile?.username || user?.username || user?.email || "Área administrativa"}
