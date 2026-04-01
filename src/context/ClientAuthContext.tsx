@@ -45,8 +45,9 @@ type ClientAuthContextValue = {
   logout: () => void;
 };
 
-const AUTH_STORAGE_KEY = "beautyflow.v2.client.session";
-const TOKEN_STORAGE_KEY = "beautyflow.v2.client.token";
+const AUTH_STORAGE_KEY = "beautyflow.v3.client.session";
+const TOKEN_STORAGE_KEY = "beautyflow.v3.client.token";
+const MAX_AUTH_TOKEN_LENGTH = 4096;
 
 const ClientAuthContext = createContext<ClientAuthContextValue | null>(null);
 
@@ -112,6 +113,10 @@ function parseJwtPayload(token: string): AuthUser | null {
   }
 
   try {
+    if (token.length > MAX_AUTH_TOKEN_LENGTH) {
+      return null;
+    }
+
     const payload = token.split(".")[1];
 
     if (!payload) {
